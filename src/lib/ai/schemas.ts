@@ -78,7 +78,7 @@ export const resolveSchema = {
   required: ["confidence", "candidates", "clarification"],
   properties: {
     confidence: { type: "string", enum: ["high", "medium", "low"] },
-    candidates: { type: "array", items: candidateSchema, maxItems: 5 },
+    candidates: { type: "array", items: candidateSchema },
     clarification: { type: "string" },
   },
 } as const;
