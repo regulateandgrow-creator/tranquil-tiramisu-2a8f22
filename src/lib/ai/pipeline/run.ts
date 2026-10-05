@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAiProvider } from "../provider";
-import { AiProviderError } from "../provider/types";
+import { AiProviderError, type AiProvider } from "../provider/types";
 import { getTtls } from "../settings";
 import { logOps, logRaw, opsLine } from "../logging";
 import { researchProduct } from "./research";
@@ -21,9 +21,10 @@ export async function runAnalysis(
   admin: SupabaseClient,
   analysis: AnalysisRow,
   candidate: ProductCandidate,
+  providerOverride?: AiProvider,
 ): Promise<void> {
   const started = Date.now();
-  const provider = getAiProvider();
+  const provider = providerOverride ?? getAiProvider();
   const fixtureKey = `${analysis.query_text} ${candidate.brand} ${candidate.name}`;
   const ttls = await getTtls(admin);
   const fail = async (code: AnalysisErrorCode, extra: Record<string, unknown> = {}) => {

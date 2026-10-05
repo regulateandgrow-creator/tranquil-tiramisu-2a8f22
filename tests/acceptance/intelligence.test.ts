@@ -9,9 +9,12 @@
  * Output: acceptance-output/<case>-run<N>.json and .md for founder review.
  *   npm run acceptance
  */
-import { describe, expect, it } from "vitest";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, it } from "vitest";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { MemoryDb } from "../support/memory-admin";
+import { InstrumentedProvider, estimateCostUsd, type RecordedCall } from "../support/instrumented-provider";
+import { classifySource, hostOf } from "@/lib/ai/citations";
+import { brandSlug } from "@/lib/ai/identity";
 import { runAnalysis } from "@/lib/ai/pipeline/run";
 import { resolveProduct } from "@/lib/ai/pipeline/resolve";
 import { getAiProvider } from "@/lib/ai/provider";
@@ -35,17 +38,66 @@ function freshDb() {
   return db;
 }
 
+const reportLines: string[] = [];
+function report(line = "") { reportLines.push(line); }
+
 async function analyze(db: MemoryDb, query: string, goals: string[]) {
-  const provider = getAiProvider()!;
+  const provider = new InstrumentedProvider(getAiProvider()!);
   const resolved = await resolveProduct(provider, query);
   const candidate = resolved.result.candidates[0];
   const row: AnalysisRow = { id: db.id(), user_id: USER, product_id: null, research_id: null, query_text: query, goals, goal_other: null, status: "researching", stage_message: null, candidates: resolved.result.candidates, result: null, error_code: null, decision: null, decided_at: null, model: null, research_cached: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
   db.tables.analyses.push(row as unknown as Record<string, unknown>);
-  if (!candidate) return { resolved, row: row as unknown as Record<string, unknown>, dossier: null, analysis: null };
-  await runAnalysis(db.client(), row, candidate);
+  if (!candidate) return { resolved, row: row as unknown as Record<string, unknown>, dossier: null, analysis: null, calls: provider.calls };
+  await runAnalysis(db.client(), row, candidate, provider);
   const done = db.tables.analyses.find((r) => r.id === row.id)!;
   const research = db.tables.product_research.find((r) => r.id === done.research_id);
-  return { resolved, row: done, dossier: (research?.dossier as ProductDossier) ?? null, analysis: (done.result as PersonalAnalysis) ?? null };
+  return { resolved, row: done, dossier: (research?.dossier as ProductDossier) ?? null, analysis: (done.result as PersonalAnalysis) ?? null, calls: provider.calls };
+}
+
+/** Everything the founder asked to see about a live run, in one place. */
+function describeRun(title: string, db: MemoryDb, r: Awaited<ReturnType<typeof analyze>>, goals: string[]) {
+  const row = r.row as Record<string, unknown>;
+  const calls = r.calls;
+  const cost = estimateCostUsd(calls);
+  const totalIn = calls.reduce((a, c) => a + c.inputTokens, 0), totalOut = calls.reduce((a, c) => a + c.outputTokens, 0);
+  const totalMs = calls.reduce((a, c) => a + c.latencyMs, 0);
+  const searched = [...new Set(calls.flatMap((c) => c.searchedUrls))];
+  const slug = r.dossier ? brandSlug(r.dossier.identity.brand) : "";
+  const tiers = searched.map((u) => classifySource(u, slug));
+  const prompts = db.tables.ai_raw_logs.filter((l) => String(l.step).startsWith("personalize")).map((l) => String(l.prompt)).join("\n");
+  const validator = (row.validator ?? {}) as Record<string, unknown>;
+  report(`## ${title}`);
+  report(`- Status: **${row.status}**${row.error_code ? ` (error: ${row.error_code})` : ""}`);
+  report(`- Provider: ${providerName}; models served per step: ${calls.map((c) => `${c.step}=${c.servedModel || "n/a"}`).join(", ")}`);
+  report(`- Calls: ${calls.length}; total latency ${(totalMs / 1000).toFixed(1)} s; tokens in ${totalIn.toLocaleString()} / out ${totalOut.toLocaleString()}`);
+  report(`- Per step: ${calls.map((c) => `${c.step} ${(c.latencyMs / 1000).toFixed(1)}s in=${c.inputTokens} out=${c.outputTokens}${c.webSearch ? " [web search]" : ""}${c.error ? ` ERROR=${c.error}` : ""}`).join("; ")}`);
+  report(`- Estimated model-token cost: ${cost.priced ? `$${cost.tokensUsd.toFixed(3)}` : "unpriced model"} (+ ${cost.webSearches} web-search-enabled call(s), billed per search separately)`);
+  report(`- Web research: ${searched.length} distinct URLs retrieved; tier 1 ${tiers.filter((t) => t.tier === 1).length}, tier 2 ${tiers.filter((t) => t.tier === 2).length}, manufacturer ${tiers.filter((t) => t.kind === "manufacturer").length}, retailer ${tiers.filter((t) => t.kind === "retailer").length}, other ${tiers.filter((t) => t.kind === "other").length}`);
+  for (const u of searched) report(`  - ${hostOf(u)} (${classifySource(u, slug).kind}, tier ${classifySource(u, slug).tier}): ${u}`);
+  report(`- Resolve: confidence ${r.resolved.result.confidence}; candidates ${r.resolved.result.candidates.map((c) => `${c.brand} ${c.name} [${c.variant || "no variant"}] ${c.form}`).join(" | ")}`);
+  if (r.dossier) {
+    const d = r.dossier;
+    report(`- Identity: ${d.identity.brand} / ${d.identity.name} / variant "${d.identity.variant}" / ${d.identity.form}; serving ${d.identity.servingSize}, ${d.identity.servingsPerContainer} servings; confidence ${d.identity.identityConfidence}; formulation verifiable=${d.formulation.verifiable} asOf=${d.formulation.asOf || "n/a"}`);
+    report(`- Ingredients: ${d.formulation.ingredients.map((i) => `${i.name} = ${i.amountPerServing}${i.proprietaryBlend ? " (blend)" : ""}`).join("; ")}`);
+    report(`- Manufacturer claims (${d.manufacturerClaims.length}): ${d.manufacturerClaims.map((c) => `"${c.claim}"`).join("; ")}`);
+    report(`- Evidence by benefit: ${d.evidenceByBenefit.map((b) => `${b.benefit}: ingredient=${b.ingredientEvidence.rating} (${b.ingredientEvidence.sourceUrls.length} src, dose ${b.ingredientEvidence.typicalStudiedDose || "n/a"}), product=${b.productEvidence.rating} (${b.productEvidence.sourceUrls.length} src)`).join(" | ")}`);
+    report(`- Delivery format: "${d.deliveryFormat.claim}" → ${d.deliveryFormat.rating}: ${d.deliveryFormat.whatEvidenceShows}`);
+    report(`- Limitations: ${d.limitations.map((l) => l.type).join(", ")}`);
+    report(`- Pricing: ${d.pricing.available ? `${d.pricing.currency} ${d.pricing.price} at ${d.pricing.retailer} (${d.pricing.sourceUrl}); ${d.pricing.servingsPerContainer} servings, ${d.pricing.servingsPerDay}/day → monthly ${d.pricing.monthlyCost}, annual ${d.pricing.annualCost}` : `unavailable: ${d.pricing.note}`}`);
+    report(`- Cautions (${d.cautions.length}): ${d.cautions.map((c) => c.caution).join("; ")}`);
+  }
+  report(`- Citation integrity: ${JSON.stringify(validator.citations ?? null)}; analysis citations dropped: ${validator.droppedAnalysisCitations ?? "n/a"}; personalize attempts: ${validator.personalizeAttempts ?? "n/a"}`);
+  if (r.analysis) {
+    const a = r.analysis;
+    report(`- Personalization: goals ${goals.join(", ")}; goal fit → ${a.goalFit.map((g) => `${g.goal}: ${g.verdict}`).join("; ")}`);
+    report(`- Money test: ${a.moneyTest.pricingAvailable ? `monthly ${a.moneyTest.monthlyCost}, annual ${a.moneyTest.annualCost}` : "pricing unavailable"} → ${a.moneyTest.premiumAssessment}`);
+    report(`- GROWN. TAKE: evidence ${a.grownTake.evidenceFit.verdict} | goal ${a.grownTake.goalFit.verdict} | value ${a.grownTake.value.verdict} | transparency ${a.grownTake.formulaTransparency.verdict} | gap ${a.grownTake.marketingEvidenceGap.verdict}`);
+    report(`- Simpler options: ${a.simplerOptions.map((o) => `${o.option} (${o.type})`).join("; ")}; consideredNoProduct=${a.consideredNoProduct}`);
+    report(`- Hide Weight compliance: policy block in prompt=${prompts.includes("Hide Weight Entirely switched on")}; lint issues=${lintAnalysis(a, true).length}`);
+    report(`- Headline: "${a.headline}"`);
+    report(`- One thing learned: "${a.oneThingLearned}"`);
+  }
+  report();
 }
 
 function rubric(analysis: PersonalAnalysis, dossier: ProductDossier, goals: string[]) {
@@ -77,12 +129,22 @@ function writeOut(name: string, data: unknown, md: string) {
   writeFileSync(`${OUT}/${name}.md`, md);
 }
 
+afterAll(() => {
+  mkdirSync(OUT, { recursive: true });
+  const header = `# GROWN. Intelligence acceptance report\n\nProvider: ${providerName}${REAL ? " (real model)" : " (scripted fixture)"} · ${new Date().toISOString()} · runs per case: ${RUNS}\n\n`;
+  writeFileSync(`${OUT}/REPORT.md`, header);
+  appendFileSync(`${OUT}/REPORT.md`, reportLines.join("\n"));
+  console.log(`\nReport written to ${OUT}/REPORT.md`);
+});
+
 describe("GROWN. Intelligence acceptance", () => {
   for (let run = 1; run <= RUNS; run++) {
     it(`gold standard: SpoiledChild E27 Extra Strength Liquid Collagen (run ${run})`, async () => {
       const db = freshDb();
       const goals = ["skin", "healthy-aging", "hair", "nails", "joints"];
-      const { resolved, row, dossier, analysis } = await analyze(db, "SpoiledChild E27 Extra Strength Liquid Collagen", goals);
+      const result = await analyze(db, "SpoiledChild E27 Extra Strength Liquid Collagen", goals);
+      const { resolved, row, dossier, analysis } = result;
+      describeRun(`SpoiledChild E27 Extra Strength — run ${run}`, db, result, goals);
       expect(resolved.result.candidates.length).toBeGreaterThan(0);
       expect(row.status, `status ${row.status} code ${row.error_code}`).toBe("complete");
       const checks = rubric(analysis!, dossier!, goals);
@@ -96,6 +158,9 @@ describe("GROWN. Intelligence acceptance", () => {
   it("control: bare 'magnesium' asks for clarification instead of guessing", async () => {
     const provider = getAiProvider()!;
     const resolved = await resolveProduct(provider, "magnesium");
+    report(`## Control: magnesium (resolve only)`);
+    report(`- Confidence ${resolved.result.confidence}; clarification: "${resolved.result.clarification}"; candidates: ${resolved.result.candidates.map((c) => `${c.brand} ${c.name} [${c.variant || "no variant"}] ${c.form}`).join(" | ") || "none"}`);
+    report();
     writeOut("magnesium-resolve", resolved.result, `# magnesium\n\nconfidence: ${resolved.result.confidence}\n\n${resolved.result.clarification}\n\n${resolved.result.candidates.map((c) => `- ${c.brand} ${c.name} ${c.variant}`).join("\n")}`);
     expect(resolved.result.confidence).not.toBe("high");
     expect(resolved.result.candidates.length === 0 || resolved.result.candidates.length > 1).toBe(true);
@@ -105,7 +170,9 @@ describe("GROWN. Intelligence acceptance", () => {
   it("control: a proprietary-blend product has undisclosed doses flagged", async () => {
     const db = freshDb();
     const query = REAL ? "Alpha Brain by Onnit" : "ProBlend Focus Complex proprietary";
-    const { row, dossier, analysis } = await analyze(db, query, ["energy"]);
+    const result = await analyze(db, query, ["energy"]);
+    const { row, dossier, analysis } = result;
+    describeRun(`Control: proprietary blend (${query})`, db, result, ["energy"]);
     writeOut("proprietary-blend", { dossier, analysis, validator: row.validator }, `# proprietary blend (${query})\n\nstatus: ${row.status}\n\n${analysis ? analysis.theCatch.map((c) => `- ${c}`).join("\n") : ""}`);
     expect(row.status, `status ${row.status} code ${row.error_code}`).toBe("complete");
     expect(dossier!.formulation.proprietaryBlendPresent || dossier!.limitations.some((l) => l.type === "proprietary-blend" || l.type === "missing-dosage")).toBe(true);
