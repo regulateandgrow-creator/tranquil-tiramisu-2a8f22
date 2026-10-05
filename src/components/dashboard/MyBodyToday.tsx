@@ -91,7 +91,7 @@ function SignalCard({ def }: { def: SignalDefinition }) {
 }
 
 export function MyBodyToday() {
-  const { loggedCount } = useDayStore();
+  const { loggedCount, sync } = useDayStore();
   const total = signalDefinitions.length;
 
   return (
@@ -106,6 +106,11 @@ export function MyBodyToday() {
           </span>
         }
       />
+      {sync === "error" && (
+        <p role="status" className="text-sm text-espresso-soft">
+          Having trouble saving right now. Your log is safe on this screen and we&apos;ll keep trying.
+        </p>
+      )}
       <div className="stagger grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {signalDefinitions.map((def) => (
           <SignalCard key={def.key} def={def} />

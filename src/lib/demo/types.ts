@@ -45,8 +45,8 @@ export interface DemoUser {
   lastName: string;
   age: number;
   timezone: string;
-  /** Weight is optional and hidden by default — see product rule in CLAUDE.md */
-  showWeight: boolean;
+  /** Hide Weight Entirely — product-level preference, on by default (see CLAUDE.md) */
+  hideWeight: boolean;
 }
 
 export interface DayCheckIn {

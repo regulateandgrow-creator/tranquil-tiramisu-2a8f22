@@ -9,5 +9,5 @@ export const demoUser: DemoUser = {
   lastName: "Alder",
   age: 47,
   timezone: "America/New_York",
-  showWeight: false,
+  hideWeight: true,
 };

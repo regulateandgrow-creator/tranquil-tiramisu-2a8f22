@@ -7,7 +7,8 @@ import { useHydrated } from "@/lib/store/use-hydrated";
 import { formatLongDate, greetingForHour } from "@/lib/utils/date";
 
 export function Greeting({ firstName }: { firstName: string }) {
-  const { checkIn, setFeeling } = useDayStore();
+  const { checkIn, setFeeling, profile } = useDayStore();
+  const name = profile.firstName || firstName;
   const hydrated = useHydrated();
 
   // Resolve the date on the client so the greeting matches the user's local time.
@@ -20,7 +21,7 @@ export function Greeting({ firstName }: { firstName: string }) {
     <section className="animate-rise">
       <p className="text-sm font-medium tracking-wide text-espresso-soft min-h-5">{dateLabel}</p>
       <h1 className="mt-1 font-serif text-[2.35rem] leading-[1.05] font-medium text-espresso sm:text-5xl">
-        {greeting}, {firstName} <span aria-hidden>🌿</span>
+        {greeting}, {name} <span aria-hidden>🌿</span>
       </h1>
       <p className="mt-2 text-lg text-espresso-soft">How are we feeling today?</p>
 

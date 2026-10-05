@@ -7,6 +7,7 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { primaryNav, secondaryNav, type NavItem } from "./nav-config";
 import type { CurrentUser } from "@/lib/auth/current-user";
 import { SignOutButton } from "./SignOutButton";
+import { useDayStore } from "@/lib/store/day-store";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -40,6 +41,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
 export function Sidebar({ user }: { user: CurrentUser }) {
   const pathname = usePathname();
+  const { profile } = useDayStore();
+  const firstName = profile.firstName || user.firstName;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-line bg-cream/70 px-5 py-7 backdrop-blur lg:flex">
@@ -65,10 +68,10 @@ export function Sidebar({ user }: { user: CurrentUser }) {
       <div className="mt-auto rounded-2xl border border-line bg-warm-white/80 p-3.5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-soft to-gold-soft font-serif text-lg font-semibold text-espresso">
-            {user.firstName[0]}
+            {firstName[0]}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold text-espresso">{user.firstName}</p>
+            <p className="truncate text-[15px] font-semibold text-espresso">{firstName}</p>
             <p className="truncate text-xs text-espresso-soft">
               {user.mode === "demo" ? "Demo account" : user.email}
             </p>

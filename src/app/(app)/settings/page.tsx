@@ -1,29 +1,47 @@
-import { PagePlaceholder } from "@/components/layout/PagePlaceholder";
 import { Card } from "@/components/ui/Card";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SignOutButton } from "@/components/navigation/SignOutButton";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getStoreBootstrap } from "@/lib/store/bootstrap";
+import { SettingsForm } from "./SettingsForm";
 
 export const metadata = { title: "Settings" };
 
-export default async function Page() {
+export default async function SettingsPage() {
   const user = await getCurrentUser();
+  const { mode } = await getStoreBootstrap(user);
+
   return (
-    <div className="space-y-6">
-      <PagePlaceholder
+    <div className="animate-rise space-y-6">
+      <SectionHeading
+        as="h1"
         eyebrow="Your rules"
         title="Settings"
-        description="Account, privacy, and display preferences, including the option to hide weight entirely."
-        milestone="Milestone 2"
+        description="How we greet you, what stays private, and your account."
       />
+
+      <SettingsForm mode={mode} />
+
       <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-espresso-soft">Account</p>
-          <p className="mt-1 text-[15px] font-semibold text-espresso">{user.firstName}</p>
-          <p className="text-sm text-espresso-soft">
-            {user.mode === "demo" ? "Demo account. Sign-in arrives once accounts are connected." : user.email}
+          <p className="mt-1 text-[15px] text-espresso">
+            {mode === "demo" ? "Demo account. Sign-in arrives once accounts are connected." : user.email}
           </p>
         </div>
-        {user.mode === "live" && <SignOutButton />}
+        {mode === "live" && <SignOutButton />}
+      </Card>
+
+      <Card tone="gold">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-espresso">What we keep</p>
+        <ul className="mt-3 space-y-1.5 text-[15px] text-espresso-soft">
+          <li>Your first name and your Hide weight preference.</li>
+          <li>Your daily check-in: how you feel and the seven body signals.</li>
+          <li>Your Life Is Lifing mode.</li>
+        </ul>
+        <p className="mt-3 text-sm text-espresso-soft">
+          That&apos;s all. Nothing else is collected in this version, and nothing is shared.
+        </p>
       </Card>
     </div>
   );

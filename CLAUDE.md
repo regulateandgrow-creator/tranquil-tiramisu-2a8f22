@@ -30,9 +30,17 @@ one of those, stop and reframe it as literacy.
 
 ### Product rules (non-negotiable)
 
-- **Weight never dominates the dashboard.** It is optional, off by default (`demoUser.showWeight = false`),
-  and users must eventually be able to hide it entirely. Visually prioritize energy, strength, sleep,
-  nutrition, mobility, digestion, consistency, and quality of life.
+- **Weight never dominates the dashboard.** Visually prioritize energy, strength, sleep, nutrition,
+  mobility, digestion, consistency, and quality of life.
+- **Hide Weight Entirely is a product-level preference, ON by default** (`profiles.hide_weight = true`).
+  When on, no feature may surface weight fields, weight trends, weight prompts, or weight-based
+  encouragement. Enforce it at the source, never cosmetically:
+  - Client UI: wrap anything weight-related in `<WeightSensitive>` (`src/lib/preferences/weight.tsx`)
+    or read `useHideWeight()`.
+  - Server Components, Route Handlers, AI prompts: read `getPreferences()` (`src/lib/preferences/server.ts`)
+    and omit weight content before it is generated or rendered.
+  - Database: `day_check_ins.signals` only accepts the seven approved signals; there is no weight column.
+  - New features must state in their PR how they respect the preference.
 - **Never make users feel like they failed.** No red failure states in the first version. Status language is
   `Building`, `Steady`, `Needs attention`, `Not logged yet`. Never `Failed`, `Bad`, `Behind`, `Over limit`.
 - **Associations, never causation.** Any text derived from the user's logs (Works For Me™) describes patterns
@@ -81,24 +89,37 @@ src/
                             WorksForMe, LifeIsLifing, GrownThought
   lib/
     demo/                   Types + fictional demo data (user, foundation, insights, thoughts, modes, signals)
-    store/                  day-store (check-in + life mode), use-hydrated
-    supabase/               client.ts (browser), server.ts (server) — both return null until env vars exist
+    store/                  day-store (profile prefs + check-in + life mode), actions (server actions),
+                            bootstrap (server → initial state), use-hydrated
+    db/                     types, validate, profile, check-ins — server-side data access
+    preferences/            weight.tsx (client guard), server.ts (server/AI guard)
+    supabase/               config, client (browser), server, proxy — all no-op in demo mode
     ai/                     Contracts for GROWN. Intelligence (types.ts, README.md)
     utils/                  cn, date helpers
 ```
 
-### Data flow (Milestone 1)
+### Data flow
 
 - Pages are Server Components. Interactive cards are Client Components (`"use client"`).
-- Demo data is imported statically from `src/lib/demo/*`.
-- Today's check-in and life mode live in `src/lib/store/day-store.tsx`, persisted to `localStorage`
-  under `grown.day-store.v1`. The server snapshot is always the empty default so SSR markup matches.
-
-### Future data flow
-
-- Supabase tables mirror `src/lib/demo/types.ts` (`day_check_ins`, `foundation_logs`, `life_mode`, `products`, `insights`).
-- All AI requests go through Next.js Route Handlers under `src/app/api/intelligence/*`.
+- `src/app/(app)/layout.tsx` resolves the user and calls `getStoreBootstrap()`, which returns the initial
+  client state: profile prefs, life mode, and the check-ins around today.
+  - **Demo mode** (no Supabase env): static demo defaults; the client merges `localStorage`
+    (`grown.day-store.v1`) after hydration.
+  - **Live mode:** read from `profiles` and `day_check_ins`. Nothing is written to `localStorage`.
+- `DayStoreProvider` (in `AppShell`) owns one store per page tree. Components call `useDayStore()`.
+- Writes: demo → `localStorage`; live → server actions in `src/lib/store/actions.ts`, debounced 400ms per
+  key with three retries, then a gentle "having trouble saving" notice. Every action re-checks the session
+  and validates input with `src/lib/db/validate.ts` before touching the database. RLS is the last line.
+- Supabase schema lives in `supabase/migrations/`. Row-level security is tested by `scripts/test-rls.sh`
+  against a local PostgreSQL (see §5).
+- Future AI requests go through Route Handlers under `src/app/api/intelligence/*`.
   The browser never holds `ANTHROPIC_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Data minimization
+
+Stage 2 stores exactly: `first_name`, `hide_weight`, `life_mode`, and per-day `feeling` + the seven
+`signals`. Feelings are chip values, not free text. Do not add personal or health fields because the
+database could hold them; every new field needs a product reason and a line in this file.
 
 ---
 
@@ -176,7 +197,13 @@ npm run build        # production build (also runs type checks)
 npm run start        # serve the production build
 npm run lint         # ESLint (Next + React hooks rules)
 npx tsc --noEmit     # standalone type check
+
+# Row-level security tests (needs a local PostgreSQL superuser; never a real Supabase project)
+PGHOST=localhost PGPORT=5432 PGUSER=postgres scripts/test-rls.sh
 ```
+
+Applying the schema to a real project: paste each file in `supabase/migrations/` into the Supabase SQL
+editor in order, or use the Supabase CLI (`supabase db push`).
 
 Environment: copy `.env.example` to `.env.local`. Without Supabase/Anthropic values the app runs in
 demo mode using local data.
@@ -224,8 +251,12 @@ Config: `src/components/navigation/nav-config.ts`.
 Explains the three inputs (scan / type / link) and the three promises (what it is / what the evidence says /
 worth your money). Engine contract: `src/lib/ai/types.ts`.
 
+### Settings (`/settings`)
+First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), account
+card with email and sign-out (live mode), and a plain "What we keep" list. Demo mode saves on-device.
+
 ### Placeholder routes
-My Body, Nourish, Move, Progress, My Products, Works For Me, Weekly Body Meeting, Settings render
+My Body, Nourish, Move, Progress, My Products, Works For Me, Weekly Body Meeting render
 `<PagePlaceholder>` with their positioning copy and target milestone.
 
 ---
