@@ -316,6 +316,32 @@ Camera scanning is Milestone 3.
 - **Acceptance test:** SpoiledChild E27 Extra Strength Liquid Collagen, goals skin/healthy aging, hair/nails,
   joints. Scripted, run three times, reviewed as the rendered page. Plus two controls: a bare ingredient
   (must ask for clarification) and a proprietary-blend product (must flag undisclosed doses).
+  Rubric taxonomy (founder-approved): exact identity passes when a strength/designation is correctly
+  represented in the canonical identity, whether in the product name or a distinct manufacturer-defined
+  variant. Never force strength into the variant field to satisfy the test.
+
+### Live-validation corrections (2026-10-05, founder-approved)
+
+Found by the first real-model run and fixed in code; the fixture provider could not have caught 1 or 2.
+
+1. **Structured output limits:** `maxItems` is rejected; the full dossier schema is rejected as "compiled
+   grammar too large". Extraction runs as two calls (`dossierCoreSchema` + `pricingSchema`) and merges.
+2. **Citation validator:** only manufacturer and retailer hosts are excluded from evidence sections.
+   Unrecognized hosts (journals the tier list does not know) survive; tiering is reporting only.
+3. **Resolve prompt:** list only variants the brand actually sells; strength designations belong in the name.
+4. **Research prompt:** at most 3 of the 8 searches for identity/label/price, at least 5 for independent
+   evidence; price from the manufacturer page first. The pricing extraction prefers manufacturer URLs.
+5. **`normalizeDossier()`:** empty ingredient amounts become "not disclosed" (disclosed=false); the money
+   arithmetic is recomputed from price, servings and servings/day.
+6. **Personalize:** goal labels are mapped back to goal keys; the diagnosis lint ignores conditional
+   cautions ("if you have a thyroid condition…").
+7. **Prompt caching is an experiment only.** `GROWN_AI_PROMPT_CACHE=on` adds top-level `cache_control`
+   to research calls. Measure with `npm run acceptance:cache-bench` (same gold case, off then on); keep
+   only if it saves meaningfully without degrading research quality or reliability. Default off.
+
+Measured on the first live run (Opus 5.5, before corrections): a fresh analysis costs about $2.1–3.1
+and takes 5–7 minutes; ~85% is research-step input tokens. A repeat analysis of a cached product runs
+only Personalize. Report first-analysis cost and cached-personalization cost separately.
 
 ## 9. Roadmap
 

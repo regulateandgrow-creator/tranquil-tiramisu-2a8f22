@@ -233,7 +233,7 @@ export class FixtureProvider implements AiProvider {
       }
       case "research": {
         if (key.includes("fail-research")) throw new AiProviderError("Simulated research outage", "unavailable", true);
-        return { ...base, text: "Fixture research narrative with sources.", json: null, searchedUrls: searched };
+        return { ...base, usage: { ...base.usage, webSearchRequests: 8 }, text: "Fixture research narrative with sources.", json: null, searchedUrls: searched };
       }
       case "extract": {
         const json = key.includes("problend") ? problendDossier() : collagenDossier();

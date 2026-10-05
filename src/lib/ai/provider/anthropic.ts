@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AiProvider, CompletionRequest, CompletionResult, SearchedUrl } from "./types";
 import { AiProviderError } from "./types";
+import { promptCacheEnabled } from "../config";
 import { getAnthropicApiKey } from "../config";
 
 /**
@@ -55,8 +56,12 @@ export class AnthropicProvider implements AiProvider {
     let text = "";
     let inputTokens = 0;
     let outputTokens = 0;
+    let cacheReadTokens = 0;
+    let cacheWriteTokens = 0;
+    let webSearchRequests = 0;
     let stopReason = "";
     let model = req.model;
+    const useCache = promptCacheEnabled() && !!req.webSearch;
 
     for (let round = 0; round <= MAX_PAUSE_RESUMES; round++) {
       let response: Anthropic.Beta.BetaMessage;
@@ -73,6 +78,7 @@ export class AnthropicProvider implements AiProvider {
           },
           betas: [FALLBACK_BETA],
           fallbacks: "default",
+          ...(useCache ? { cache_control: { type: "ephemeral" as const } } : {}),
         });
       } catch (err) {
         throw toProviderError(err);
@@ -80,6 +86,9 @@ export class AnthropicProvider implements AiProvider {
 
       inputTokens += response.usage.input_tokens;
       outputTokens += response.usage.output_tokens;
+      cacheReadTokens += response.usage.cache_read_input_tokens ?? 0;
+      cacheWriteTokens += response.usage.cache_creation_input_tokens ?? 0;
+      webSearchRequests += response.usage.server_tool_use?.web_search_requests ?? 0;
       stopReason = response.stop_reason ?? "";
       model = response.model;
 
@@ -123,7 +132,14 @@ export class AnthropicProvider implements AiProvider {
       }
     }
 
-    return { text, json, searchedUrls: [...searched.values()], usage: { inputTokens, outputTokens }, stopReason, model };
+    return {
+      text,
+      json,
+      searchedUrls: [...searched.values()],
+      usage: { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, webSearchRequests },
+      stopReason,
+      model,
+    };
   }
 }
 

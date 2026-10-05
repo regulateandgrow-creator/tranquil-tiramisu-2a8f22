@@ -23,6 +23,7 @@ export class MemoryDb {
   id() { this.seq += 1; return `00000000-0000-4000-8000-${String(this.seq).padStart(12, "0")}`; }
 
   client(): SupabaseClient {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const db = this;
     const builder = (table: string) => {
       const rows = () => db.tables[table] ?? (db.tables[table] = []);

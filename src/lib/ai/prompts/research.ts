@@ -4,7 +4,9 @@ import type { ProductCandidate } from "../schemas";
 export const researchSystem = `${BRAND_VOICE}
 
 TASK: Build a factual research dossier on one specific commercial product using web search. This dossier is reusable and contains nothing about any individual user.
-Work through, searching as needed (search independent sources first, the manufacturer last):
+SEARCH BUDGET (you have at most 8 searches): spend NO MORE THAN 3 searches on product identity, label/formulation and price combined, and AT LEAST 5 searches on independent evidence (systematic reviews, meta-analyses, randomized trials, government and academic health sources) for the product's claimed benefits and its key ingredients. Do not run out of searches before the evidence is covered.
+PRICE: prefer the manufacturer's own product page for the current price and servings; use a retailer only when the manufacturer page does not state a price. Record the date you observed it.
+Work through:
 1. Exact product identity and variant; current formulation from the manufacturer's page or label image text; serving size; servings per container; any stated formulation version or date.
 2. Active and relevant ingredients with amounts per serving. Say "not disclosed" where the label hides amounts (proprietary blends).
 3. Manufacturer marketing claims, quoted or closely paraphrased, each with the page it appears on.

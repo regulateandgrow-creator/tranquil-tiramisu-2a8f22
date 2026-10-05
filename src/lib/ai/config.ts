@@ -59,6 +59,16 @@ export const settingEnvOverrides: Record<string, string> = {
   ai_raw_log_retention_days: "GROWN_AI_RAW_LOG_RETENTION_DAYS",
 };
 
+/**
+ * Prompt caching EXPERIMENT (founder-approved as measured-only). Off by default.
+ * GROWN_AI_PROMPT_CACHE=on adds top-level cache_control to research calls so the
+ * server-side search loop can reuse its prefix. Keep only if the benchmark shows
+ * meaningful savings with no loss of research quality or reliability.
+ */
+export function promptCacheEnabled(): boolean {
+  return env("GROWN_AI_PROMPT_CACHE") === "on";
+}
+
 export function rawLogsEnabled(): boolean {
   return env("GROWN_AI_RAW_LOGS") !== "off";
 }

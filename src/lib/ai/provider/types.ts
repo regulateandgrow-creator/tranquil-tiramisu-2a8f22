@@ -30,7 +30,15 @@ export interface CompletionResult {
   json: unknown | null;
   /** Every URL the web search tool actually returned or cited during this call. */
   searchedUrls: SearchedUrl[];
-  usage: { inputTokens: number; outputTokens: number };
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    /** Prompt-cache tokens, when the provider reports them (experiment measurement). */
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    /** Server-side web searches billed on this call, when reported. */
+    webSearchRequests?: number;
+  };
   stopReason: string;
   model: string;
 }

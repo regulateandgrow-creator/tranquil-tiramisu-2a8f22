@@ -5,6 +5,26 @@ import { personalizeSystem, personalizeUser } from "../prompts/personalize";
 import { validateAnalysisCitations } from "../citations";
 import { lintAnalysis, type LintIssue } from "../lint";
 import type { PersonalContext } from "@/lib/preferences/weight-policy";
+import { goalOptions } from "../goals";
+
+/** The model sometimes returns the display label ("Skin") where the key ("skin") belongs. */
+export function normalizeGoalKeys(analysis: PersonalAnalysis, selectedGoals: string[]): PersonalAnalysis {
+  const byLabel = new Map(goalOptions.map((g) => [g.label.toLowerCase(), g.key]));
+  const byKey = new Set(goalOptions.map((g) => g.key));
+  const toKey = (g: string) => {
+    const t = g.trim();
+    if (byKey.has(t)) return t;
+    const lower = t.toLowerCase();
+    if (byLabel.has(lower)) return byLabel.get(lower)!;
+    const loose = selectedGoals.find((k) => lower.includes(k) || lower.replace(/[^a-z]/g, "").includes(k.replace(/[^a-z]/g, "")));
+    return loose ?? t;
+  };
+  return {
+    ...analysis,
+    whatTheEvidenceSays: analysis.whatTheEvidenceSays.map((e) => ({ ...e, goal: toKey(e.goal) })),
+    goalFit: analysis.goalFit.map((g) => ({ ...g, goal: toKey(g.goal) })),
+  };
+}
 
 export interface PersonalizeOutcome {
   analysis: PersonalAnalysis;
@@ -62,7 +82,7 @@ export async function personalizeAnalysis(
     model = res.model;
     raw.push({ step: `personalize:${attempt}`, prompt: `${system}\n\n${user}`, output: res.text });
 
-    const { analysis, dropped } = validateAnalysisCitations(res.json as PersonalAnalysis, dossier);
+    const { analysis, dropped } = validateAnalysisCitations(normalizeGoalKeys(res.json as PersonalAnalysis, ctx.goals), dossier);
     const issues = lintAnalysis(analysis, ctx.hideWeight);
     if (issues.length === 0) {
       return { analysis, attempts: attempt, issues: [], droppedCitations: dropped, usage, model, raw };

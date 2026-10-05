@@ -51,6 +51,15 @@ describe("citation integrity", () => {
     expect(report.downgraded).toContain("skin:ingredient");
   });
 
+  it("keeps legitimate journal hosts the tier list does not know in evidence sections", async () => {
+    const { dossier, searched } = await fixtureDossier();
+    const journal = "https://www.amjmed.com/article/S0002-9343(20)30000-1/fulltext";
+    dossier.evidenceByBenefit[0].ingredientEvidence.sourceUrls.push(journal);
+    const { dossier: clean, report } = validateDossierCitations(dossier, [...searched, journal], "spoiledchild");
+    expect(clean.evidenceByBenefit[0].ingredientEvidence.sourceUrls.some((u) => u.includes("amjmed.com"))).toBe(true);
+    expect(report.manufacturerInEvidence).toEqual([]);
+  });
+
   it("removes manufacturer URLs from evidence sections but keeps them for claims and pricing", async () => {
     const { dossier, searched } = await fixtureDossier();
     dossier.evidenceByBenefit[0].ingredientEvidence.sourceUrls.push("https://www.spoiledchild.com/products/e27-extra-strength-liquid-collagen");

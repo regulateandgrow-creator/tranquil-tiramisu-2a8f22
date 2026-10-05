@@ -1,9 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AiProvider } from "../provider/types";
 import { aiDefaults, aiModels } from "../config";
-import { dossierSchema, pricingSchema, type DossierPricing, type ProductCandidate, type ProductDossier } from "../schemas";
+import { dossierCoreSchema, pricingSchema, type DossierPricing, type ProductCandidate, type ProductDossier, type ProductDossierCore } from "../schemas";
 import { researchSystem, researchUser } from "../prompts/research";
-import { extractSystem, extractUser } from "../prompts/extract";
+import { extractSystem, extractUser, extractPricingSystem, extractPricingUser } from "../prompts/extract";
 import { pricingSystem, pricingUser } from "../prompts/pricing";
 import { validateDossierCitations, type CitationReport, normalizeUrl } from "../citations";
 import { brandSlug, formulationFingerprint, identityFromCandidate, identityKey } from "../identity";
@@ -89,7 +89,9 @@ export async function researchProduct(
   usage = add(usage, narrative.usage);
   raw.push({ step: "research", prompt: `${researchSystem}\n\n${researchPrompt}`, output: narrative.text });
 
-  // 2. Extract into the strict dossier schema, allowing only searched URLs.
+  // 2. Extract into strict schemas, allowing only searched URLs. Two calls:
+  //    the dossier core and the pricing block (the full schema is too large
+  //    for the structured-output compiler; verified live).
   const allowed = narrative.searchedUrls.map((s) => normalizeUrl(s.url));
   const extractPrompt = extractUser(narrative.text, allowed);
   const extracted = await provider.complete({
@@ -97,7 +99,7 @@ export async function researchProduct(
     model: aiModels.extract,
     system: extractSystem,
     user: extractPrompt,
-    jsonSchema: dossierSchema,
+    jsonSchema: dossierCoreSchema,
     maxTokens: 16000,
     effort: "medium",
     fixtureKey,
@@ -105,8 +107,27 @@ export async function researchProduct(
   usage = add(usage, extracted.usage);
   raw.push({ step: "extract", prompt: `${extractSystem}\n\n${extractPrompt}`, output: extracted.text });
 
+  const pricingPrompt = extractPricingUser(narrative.text, allowed, slug);
+  const extractedPricing = await provider.complete({
+    step: "pricing",
+    model: aiModels.extract,
+    system: extractPricingSystem,
+    user: pricingPrompt,
+    jsonSchema: pricingSchema,
+    maxTokens: 2000,
+    effort: "low",
+    fixtureKey,
+  });
+  usage = add(usage, extractedPricing.usage);
+  raw.push({ step: "extract-pricing", prompt: `${extractPricingSystem}\n\n${pricingPrompt}`, output: extractedPricing.text });
+
+  const merged: ProductDossier = normalizeDossier({
+    ...(extracted.json as ProductDossierCore),
+    pricing: extractedPricing.json as DossierPricing,
+  });
+
   // 3. Validate citations: fabricated or unsearched URLs cannot survive.
-  const { dossier, report } = validateDossierCitations(extracted.json as ProductDossier, allowed, slug);
+  const { dossier, report } = validateDossierCitations(merged, allowed, slug);
 
   const fingerprint = formulationFingerprint(dossier.formulation.ingredients);
   const version = (existing?.version ?? 0) + 1;
@@ -156,6 +177,37 @@ async function refreshPricing(
   } catch {
     return null; // stale pricing is shown with its observed date rather than failing the analysis
   }
+}
+
+/**
+ * Deterministic clean-up after extraction:
+ *  - an ingredient with no amount is labelled "not disclosed" (and marked undisclosed)
+ *  - string fields are never undefined
+ */
+export function normalizeDossier(d: ProductDossier): ProductDossier {
+  const ingredients = (d.formulation?.ingredients ?? []).map((i) => {
+    const amount = (i.amountPerServing ?? "").trim();
+    const disclosed = amount !== "" && !/not disclosed|undisclosed|n\/a/i.test(amount) && i.disclosed !== false;
+    return { ...i, amountPerServing: disclosed ? amount : "not disclosed", disclosed };
+  });
+  const pricing: DossierPricing = {
+    available: !!d.pricing?.available,
+    price: Number(d.pricing?.price ?? 0) || 0,
+    currency: d.pricing?.currency || "USD",
+    retailer: d.pricing?.retailer ?? "",
+    sourceUrl: d.pricing?.sourceUrl ?? "",
+    servingsPerContainer: Number(d.pricing?.servingsPerContainer ?? 0) || 0,
+    servingsPerDay: Number(d.pricing?.servingsPerDay ?? 0) || 0,
+    monthlyCost: Number(d.pricing?.monthlyCost ?? 0) || 0,
+    annualCost: Number(d.pricing?.annualCost ?? 0) || 0,
+    note: d.pricing?.note ?? "",
+  };
+  // Recompute the arithmetic from the inputs so a model slip cannot mis-state the money test.
+  if (pricing.available && pricing.price > 0 && pricing.servingsPerContainer > 0 && pricing.servingsPerDay > 0) {
+    pricing.monthlyCost = Math.round(((pricing.price / pricing.servingsPerContainer) * pricing.servingsPerDay * 30) * 100) / 100;
+    pricing.annualCost = Math.round(pricing.monthlyCost * 12 * 100) / 100;
+  }
+  return { ...d, formulation: { ...d.formulation, ingredients }, pricing };
 }
 
 function add(a: { inputTokens: number; outputTokens: number }, b: { inputTokens: number; outputTokens: number }) {

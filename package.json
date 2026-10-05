@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "acceptance": "GROWN_ACCEPTANCE=1 vitest run --config vitest.acceptance.config.mts"
+    "acceptance": "GROWN_ACCEPTANCE=1 vitest run --config vitest.acceptance.config.mts",
+    "acceptance:cache-bench": "GROWN_ACCEPTANCE=1 GROWN_ACCEPTANCE_MODE=cache-bench vitest run --config vitest.acceptance.config.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

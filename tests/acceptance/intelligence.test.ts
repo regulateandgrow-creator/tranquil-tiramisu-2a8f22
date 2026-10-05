@@ -12,7 +12,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { MemoryDb } from "../support/memory-admin";
-import { InstrumentedProvider, estimateCostUsd, type RecordedCall } from "../support/instrumented-provider";
+import { InstrumentedProvider, estimateCostUsd } from "../support/instrumented-provider";
 import { classifySource, hostOf } from "@/lib/ai/citations";
 import { brandSlug } from "@/lib/ai/identity";
 import { runAnalysis } from "@/lib/ai/pipeline/run";
@@ -71,7 +71,8 @@ function describeRun(title: string, db: MemoryDb, r: Awaited<ReturnType<typeof a
   report(`- Provider: ${providerName}; models served per step: ${calls.map((c) => `${c.step}=${c.servedModel || "n/a"}`).join(", ")}`);
   report(`- Calls: ${calls.length}; total latency ${(totalMs / 1000).toFixed(1)} s; tokens in ${totalIn.toLocaleString()} / out ${totalOut.toLocaleString()}`);
   report(`- Per step: ${calls.map((c) => `${c.step} ${(c.latencyMs / 1000).toFixed(1)}s in=${c.inputTokens} out=${c.outputTokens}${c.webSearch ? " [web search]" : ""}${c.error ? ` ERROR=${c.error}` : ""}`).join("; ")}`);
-  report(`- Estimated model-token cost: ${cost.priced ? `$${cost.tokensUsd.toFixed(3)}` : "unpriced model"} (+ ${cost.webSearches} web-search-enabled call(s), billed per search separately)`);
+  const cacheRead = calls.reduce((a, c) => a + c.cacheReadTokens, 0), cacheWrite = calls.reduce((a, c) => a + c.cacheWriteTokens, 0);
+  report(`- Cost: ${cost.priced ? `$${cost.totalUsd.toFixed(3)} total = $${cost.tokensUsd.toFixed(3)} tokens + $${cost.searchUsd.toFixed(3)} for ${cost.webSearches} web searches` : "unpriced model"}; prompt cache read ${cacheRead.toLocaleString()} / write ${cacheWrite.toLocaleString()} tokens; GROWN_AI_PROMPT_CACHE=${process.env.GROWN_AI_PROMPT_CACHE ?? "off"}`);
   report(`- Web research: ${searched.length} distinct URLs retrieved; tier 1 ${tiers.filter((t) => t.tier === 1).length}, tier 2 ${tiers.filter((t) => t.tier === 2).length}, manufacturer ${tiers.filter((t) => t.kind === "manufacturer").length}, retailer ${tiers.filter((t) => t.kind === "retailer").length}, other ${tiers.filter((t) => t.kind === "other").length}`);
   for (const u of searched) report(`  - ${hostOf(u)} (${classifySource(u, slug).kind}, tier ${classifySource(u, slug).tier}): ${u}`);
   report(`- Resolve: confidence ${r.resolved.result.confidence}; candidates ${r.resolved.result.candidates.map((c) => `${c.brand} ${c.name} [${c.variant || "no variant"}] ${c.form}`).join(" | ")}`);
@@ -87,6 +88,19 @@ function describeRun(title: string, db: MemoryDb, r: Awaited<ReturnType<typeof a
     report(`- Cautions (${d.cautions.length}): ${d.cautions.map((c) => c.caution).join("; ")}`);
   }
   report(`- Citation integrity: ${JSON.stringify(validator.citations ?? null)}; analysis citations dropped: ${validator.droppedAnalysisCitations ?? "n/a"}; personalize attempts: ${validator.personalizeAttempts ?? "n/a"}`);
+  if (r.dossier) {
+    const d = r.dossier;
+    const independent = tiers.filter((t) => t.kind === "independent").length;
+    const evidenceSrc = new Set(d.evidenceByBenefit.flatMap((b) => [...b.ingredientEvidence.sourceUrls, ...b.productEvidence.sourceUrls]));
+    const unknownKept = [...evidenceSrc].filter((u) => classifySource(u, slug).kind === "other");
+    const mfrPrice = !!d.pricing.sourceUrl && classifySource(d.pricing.sourceUrl, slug).kind === "manufacturer";
+    const undisclosed = d.formulation.ingredients.filter((i) => !i.disclosed);
+    report(`- VERIFY search allocation to independent evidence: ${independent} independent of ${searched.length} retrieved URLs (${searched.length ? Math.round((independent / searched.length) * 100) : 0}%); evidence entries with ≥1 source: ${d.evidenceByBenefit.filter((b) => b.ingredientEvidence.sourceUrls.length > 0).length}/${d.evidenceByBenefit.length}`);
+    report(`- VERIFY manufacturer pricing preferred: ${d.pricing.available ? (mfrPrice ? "YES, price taken from manufacturer page" : `NO, price from ${hostOf(d.pricing.sourceUrl) || "unknown"}; manufacturer URLs retrieved: ${searched.filter((u) => classifySource(u, slug).kind === "manufacturer").length}`) : "pricing unavailable"}`);
+    report(`- VERIFY journal domains survive validation: ${unknownKept.length} unrecognized-host evidence URL(s) kept (${unknownKept.map(hostOf).join(", ") || "none"}); removed from evidence as manufacturer/retailer: ${(validator.citations as { manufacturerInEvidence?: string[] } | undefined)?.manufacturerInEvidence?.length ?? 0}`);
+    report(`- VERIFY "not disclosed" labelling: ${undisclosed.length} undisclosed ingredient(s), all labelled: ${undisclosed.every((i) => /not disclosed/i.test(i.amountPerServing))}`);
+    report(`- VERIFY identity accuracy: ${d.identity.brand} ${d.identity.name}${d.identity.variant ? ` [${d.identity.variant}]` : ""} (${d.identity.form}), confidence ${d.identity.identityConfidence}; resolve candidates offered: ${r.resolved.result.candidates.length}`);
+  }
   if (r.analysis) {
     const a = r.analysis;
     report(`- Personalization: goals ${goals.join(", ")}; goal fit → ${a.goalFit.map((g) => `${g.goal}: ${g.verdict}`).join("; ")}`);
@@ -103,8 +117,10 @@ function describeRun(title: string, db: MemoryDb, r: Awaited<ReturnType<typeof a
 function rubric(analysis: PersonalAnalysis, dossier: ProductDossier, goals: string[]) {
   const text = JSON.stringify(analysis);
   const checks: Array<[string, boolean]> = [
-    ["Exact variant identified", /extra strength/i.test(dossier.identity.variant) && /liquid/i.test(dossier.identity.form)],
-    ["Ingredients with amounts or 'not disclosed'", dossier.formulation.ingredients.length > 0 && dossier.formulation.ingredients.every((i) => i.amountPerServing.length > 0)],
+    // Taxonomy clarification (founder-approved 2026-10-05): the strength/designation passes when it is
+    // correctly represented in the canonical identity, whether in the product name or a distinct variant.
+    ["Exact identity incl. strength designation", /extra strength/i.test(`${dossier.identity.name} ${dossier.identity.variant}`) && /liquid/i.test(dossier.identity.form)],
+    ["Ingredients with amounts or 'not disclosed'", dossier.formulation.ingredients.length > 0 && dossier.formulation.ingredients.every((i) => i.amountPerServing.length > 0) && dossier.formulation.ingredients.every((i) => i.disclosed || /not disclosed/i.test(i.amountPerServing))],
     ["Manufacturer claims listed with a source", dossier.manufacturerClaims.length > 0],
     ["Independent collagen evidence rated with sources", dossier.evidenceByBenefit.some((b) => b.ingredientEvidence.sourceUrls.length > 0 && b.ingredientEvidence.rating !== "none-found")],
     ["Product-specific evidence stated separately", dossier.evidenceByBenefit.every((b) => typeof b.productEvidence.rating === "string")],
@@ -137,7 +153,34 @@ afterAll(() => {
   console.log(`\nReport written to ${OUT}/REPORT.md`);
 });
 
-describe("GROWN. Intelligence acceptance", () => {
+const CACHE_BENCH = process.env.GROWN_ACCEPTANCE_MODE === "cache-bench";
+
+describe.runIf(CACHE_BENCH)("Prompt-caching experiment (measured only)", () => {
+  it("runs the same gold case with caching off, then on, and compares", async () => {
+    const goals = ["skin", "healthy-aging", "hair", "nails", "joints"];
+    const results: Array<{ mode: string; r: Awaited<ReturnType<typeof analyze>>; db: MemoryDb }> = [];
+    for (const mode of ["off", "on"]) {
+      process.env.GROWN_AI_PROMPT_CACHE = mode;
+      const db = freshDb();
+      const r = await analyze(db, "SpoiledChild E27 Extra Strength Liquid Collagen", goals);
+      describeRun(`Cache experiment — GROWN_AI_PROMPT_CACHE=${mode}`, db, r, goals);
+      results.push({ mode, r, db });
+      writeOut(`cache-bench-${mode}`, { calls: r.calls, dossier: r.dossier, analysis: r.analysis, validator: (r.row as Record<string, unknown>).validator }, `# cache ${mode}`);
+    }
+    report(`## Cache experiment comparison`);
+    for (const { mode, r } of results) {
+      const cost = estimateCostUsd(r.calls);
+      const research = r.calls.find((c) => c.step === "research");
+      const checks = r.analysis && r.dossier ? rubric(r.analysis, r.dossier, goals) : [];
+      report(`- ${mode}: status ${(r.row as Record<string, unknown>).status}; total $${cost.totalUsd.toFixed(3)}; research step ${research ? `${(research.latencyMs / 1000).toFixed(0)} s, in ${research.inputTokens.toLocaleString()}, cache read ${research.cacheReadTokens.toLocaleString()}, write ${research.cacheWriteTokens.toLocaleString()}, searches ${research.webSearchRequests}` : "n/a"}; rubric ${checks.filter(([, ok]) => ok).length}/${checks.length}; URLs ${[...new Set(r.calls.flatMap((c) => c.searchedUrls))].length}`);
+    }
+    report();
+    process.env.GROWN_AI_PROMPT_CACHE = "off";
+    for (const { r } of results) expect((r.row as Record<string, unknown>).status).toBe("complete");
+  });
+});
+
+describe.skipIf(CACHE_BENCH)("GROWN. Intelligence acceptance", () => {
   for (let run = 1; run <= RUNS; run++) {
     it(`gold standard: SpoiledChild E27 Extra Strength Liquid Collagen (run ${run})`, async () => {
       const db = freshDb();
@@ -148,6 +191,15 @@ describe("GROWN. Intelligence acceptance", () => {
       expect(resolved.result.candidates.length).toBeGreaterThan(0);
       expect(row.status, `status ${row.status} code ${row.error_code}`).toBe("complete");
       const checks = rubric(analysis!, dossier!, goals);
+      // Second woman, same product, within the cache window: only Personalize runs.
+      const repeat = await analyze(db, "SpoiledChild E27 Extra Strength Liquid Collagen", ["joints", "skin"]);
+      const repeatRow = repeat.row as Record<string, unknown>;
+      const repeatCost = estimateCostUsd(repeat.calls);
+      const repeatMs = repeat.calls.reduce((a, c) => a + c.latencyMs, 0);
+      report(`### Cached personalization (same product, different goals) — run ${run}`);
+      report(`- Status ${repeatRow.status}; research_cached=${repeatRow.research_cached}; steps: ${repeat.calls.map((c) => c.step).join(", ")}; latency ${(repeatMs / 1000).toFixed(1)} s; cost ${repeatCost.priced ? `$${repeatCost.totalUsd.toFixed(3)}` : "unpriced"}`);
+      report();
+      expect(repeatRow.research_cached, "repeat analysis should reuse the cached dossier").toBe(true);
       const md = [`# SpoiledChild E27 Extra Strength — run ${run} (${providerName})`, "", ...checks.map(([c, ok]) => `- [${ok ? "x" : " "}] ${c}`), "", `## Headline\n${analysis!.headline}`, `## One thing learned\n${analysis!.oneThingLearned}`, `## Sources\n${analysis!.citations.map((c) => `- [${c.n}] ${c.url}`).join("\n")}`].join("\n");
       writeOut(`spoiledchild-run${run}`, { resolved: resolved.result, dossier, analysis, validator: row.validator }, md);
       console.log(md);

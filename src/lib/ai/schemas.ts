@@ -451,3 +451,22 @@ export const personalAnalysisSchema = {
 /* ── Pricing refresh (small, cacheable) ─────────────────────── */
 
 export const pricingSchema = dossierSchema.properties.pricing;
+
+/**
+ * The dossier WITHOUT pricing. Anthropic's structured-output compiler rejects
+ * the full dossier schema as too large ("compiled grammar is too large"), so
+ * extraction runs as two calls: this core schema plus `pricingSchema`.
+ * Verified live on 2026-10-05: the core compiles; the full schema does not.
+ */
+export const dossierCoreSchema = (() => {
+  const { pricing: _pricing, ...properties } = dossierSchema.properties;
+  void _pricing;
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: dossierSchema.required.filter((k) => k !== "pricing"),
+    properties,
+  } as const;
+})();
+
+export type ProductDossierCore = Omit<ProductDossier, "pricing">;

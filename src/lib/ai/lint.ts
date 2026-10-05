@@ -10,7 +10,8 @@ const BANNED: Array<{ id: string; re: RegExp }> = [
   { id: "verdict-buy", re: /\b(don'?t buy|do not buy|buy it|must[- ]buy|skip it|avoid it at all costs)\b/i },
   { id: "shame", re: /\b(you failed|you'?re behind|bad choice|cheat(ed|ing)? on|guilty|lazy|over limit)\b/i },
   { id: "medication-directive", re: /\b(stop taking|start taking|discontinue|increase your (dose|medication)|replace your (medication|prescription))\b/i },
-  { id: "diagnosis", re: /\b(you have (a|an) [a-z ]*(deficiency|condition|disorder|disease)|this (will|is going to) (cure|fix|heal))\b/i },
+  // Assertive diagnosis only. Conditional cautions ("if you have a thyroid condition…") are good practice, not diagnosis.
+  { id: "diagnosis", re: /\b(?<!\bif )(?<!\bwhether )(?<!\bunless )(?<!\bwhen )(?<!\bshould )(?<!\banyone who )(you (clearly |probably |likely |definitely )?have (a|an) [a-z ]*(deficiency|condition|disorder|disease)|this (will|is going to) (cure|fix|heal))\b/i },
   { id: "promise", re: /\b(guaranteed|clinically proven to|you will (see|get|have) results)\b/i },
 ];
 

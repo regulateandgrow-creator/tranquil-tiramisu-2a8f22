@@ -6,7 +6,8 @@ import type { ProductDossier, PersonalAnalysis, SourceKind } from "./schemas";
  * Rule 1: a citation URL must have been returned by web search in the same
  *         pipeline run. Anything else is dropped and reported.
  * Rule 2: manufacturer and retailer domains may support claims, product facts
- *         and pricing, never evidence.
+ *         and pricing, never evidence. Any other host (including journals the
+ *         tier list does not know) may support evidence; tiering is reporting only.
  * Rule 3: an evidence entry left with no confirmed independent source cannot
  *         keep a rating above "insufficient".
  * There is no numeric quota: the strongest relevant evidence available wins.
@@ -108,7 +109,7 @@ export function validateDossierCitations(
         continue;
       }
       const cls = classifySource(n, brandSlug);
-      if (evidence && cls.kind !== "independent") {
+      if (evidence && (cls.kind === "manufacturer" || cls.kind === "retailer")) {
         report.manufacturerInEvidence.push(raw);
         continue;
       }
