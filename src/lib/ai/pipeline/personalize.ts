@@ -30,6 +30,8 @@ export interface PersonalizeOutcome {
   analysis: PersonalAnalysis;
   attempts: number;
   issues: LintIssue[];          // issues on the final accepted attempt (empty when clean)
+  /** Check identifiers that forced a regeneration (ids only; no user text). */
+  regenerationIssueIds: string[];
   droppedCitations: string[];
   usage: { inputTokens: number; outputTokens: number };
   model: string;
@@ -85,7 +87,7 @@ export async function personalizeAnalysis(
     const { analysis, dropped } = validateAnalysisCitations(normalizeGoalKeys(res.json as PersonalAnalysis, ctx.goals), dossier);
     const issues = lintAnalysis(analysis, ctx.hideWeight);
     if (issues.length === 0) {
-      return { analysis, attempts: attempt, issues: [], droppedCitations: dropped, usage, model, raw };
+      return { analysis, attempts: attempt, issues: [], regenerationIssueIds: lastIssues.map((i) => i.id), droppedCitations: dropped, usage, model, raw };
     }
     lastIssues = issues;
   }

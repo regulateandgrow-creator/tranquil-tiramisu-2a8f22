@@ -3,7 +3,7 @@
  * vendor can change without touching product code.
  */
 
-export type AiStep = "resolve" | "research" | "extract" | "personalize" | "pricing";
+export type AiStep = "resolve" | "research" | "extract" | "personalize" | "pricing" | "pricing-fetch";
 
 export interface CompletionRequest {
   step: AiStep;
@@ -12,6 +12,8 @@ export interface CompletionRequest {
   user: string;
   /** Enables server-side web search for this call. */
   webSearch?: { maxUses: number };
+  /** Enables server-side web fetch of URLs already present in the prompt. */
+  webFetch?: { maxUses: number; allowedDomains?: string[] };
   /** Forces a strict JSON output matching this schema. */
   jsonSchema?: Record<string, unknown>;
   maxTokens: number;
@@ -28,7 +30,7 @@ export interface SearchedUrl {
 export interface CompletionResult {
   text: string;
   json: unknown | null;
-  /** Every URL the web search tool actually returned or cited during this call. */
+  /** Every URL the web search tool returned or cited, or the web fetch tool retrieved, during this call. */
   searchedUrls: SearchedUrl[];
   usage: {
     inputTokens: number;

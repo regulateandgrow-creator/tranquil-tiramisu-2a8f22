@@ -73,6 +73,7 @@ export async function runAnalysis(
         citations: research.report,
         pricingRefreshed: research.pricingRefreshed,
         personalizeAttempts: personal.attempts,
+        regenerationIssueIds: personal.regenerationIssueIds,
         droppedAnalysisCitations: personal.droppedCitations.length,
         hideWeight: ctx.hideWeight,
       },
@@ -81,6 +82,8 @@ export async function runAnalysis(
       analysisId: analysis.id,
       cached: research.cached,
       attempts: personal.attempts,
+      regenerationIssueIds: personal.regenerationIssueIds.join(",") || null,
+      pricingFetch: research.report?.pricingFetch ?? null,
       latencyMs: Date.now() - started,
       model: personal.model,
     });

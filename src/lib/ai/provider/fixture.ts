@@ -240,8 +240,25 @@ export class FixtureProvider implements AiProvider {
         return { ...base, text: JSON.stringify(json), json, searchedUrls: [] };
       }
       case "pricing": {
-        const json = collagenDossier().pricing;
+        // "price-missing" simulates a search snippet with no usable manufacturer price.
+        const json = key.includes("price-missing")
+          ? { ...collagenDossier().pricing, available: false, price: 0, retailer: "", sourceUrl: "", monthlyCost: 0, annualCost: 0, note: "No price in search snippets." }
+          : collagenDossier().pricing;
         return { ...base, text: JSON.stringify(json), json, searchedUrls: [MFR].map((url) => ({ url, title: null })) };
+      }
+      case "pricing-fetch": {
+        // "page-no-price" simulates a manufacturer page that shows no price; "fetch-fabricate" simulates a
+        // model that returns a price citing a URL it never fetched (must be discarded).
+        if (key.includes("page-no-price")) {
+          const json = { ...collagenDossier().pricing, available: false, price: 0, sourceUrl: "", monthlyCost: 0, annualCost: 0, note: "Page shows a subscription widget only." };
+          return { ...base, text: JSON.stringify(json), json, searchedUrls: [{ url: MFR, title: null }] };
+        }
+        if (key.includes("fetch-fabricate")) {
+          const json = { ...collagenDossier().pricing, price: 42, sourceUrl: "https://www.spoiledchild.com/some-other-page" };
+          return { ...base, text: JSON.stringify(json), json, searchedUrls: [] };
+        }
+        const json = { ...collagenDossier().pricing, price: 59, monthlyCost: 55.31, annualCost: 663.75, note: "Read from the manufacturer page." };
+        return { ...base, text: JSON.stringify(json), json, searchedUrls: [{ url: MFR, title: null }] };
       }
       case "personalize": {
         const goals = (req.user.match(/GOALS:\s*([a-z\-, ]+)/i)?.[1] ?? "skin").split(",").map((g) => g.trim()).filter(Boolean);

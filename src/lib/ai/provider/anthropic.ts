@@ -48,9 +48,16 @@ export class AnthropicProvider implements AiProvider {
     await this.checkModel(req.model);
 
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: req.user }];
-    const tools: Anthropic.Beta.BetaToolUnion[] = req.webSearch
-      ? [{ type: "web_search_20260209", name: "web_search", max_uses: req.webSearch.maxUses }]
-      : [];
+    const tools: Anthropic.Beta.BetaToolUnion[] = [];
+    if (req.webSearch) tools.push({ type: "web_search_20260209", name: "web_search", max_uses: req.webSearch.maxUses });
+    if (req.webFetch) {
+      tools.push({
+        type: "web_fetch_20260209",
+        name: "web_fetch",
+        max_uses: req.webFetch.maxUses,
+        ...(req.webFetch.allowedDomains?.length ? { allowed_domains: req.webFetch.allowedDomains } : {}),
+      });
+    }
 
     const searched = new Map<string, SearchedUrl>();
     let text = "";
@@ -61,7 +68,7 @@ export class AnthropicProvider implements AiProvider {
     let webSearchRequests = 0;
     let stopReason = "";
     let model = req.model;
-    const useCache = promptCacheEnabled() && !!req.webSearch;
+    const useCache = promptCacheEnabled() && (!!req.webSearch || !!req.webFetch);
 
     for (let round = 0; round <= MAX_PAUSE_RESUMES; round++) {
       let response: Anthropic.Beta.BetaMessage;
@@ -102,6 +109,8 @@ export class AnthropicProvider implements AiProvider {
           for (const r of block.content) {
             if (r.type === "web_search_result") searched.set(r.url, { url: r.url, title: r.title ?? null });
           }
+        } else if (block.type === "web_fetch_tool_result" && block.content.type === "web_fetch_result") {
+          searched.set(block.content.url, { url: block.content.url, title: null });
         }
       }
 

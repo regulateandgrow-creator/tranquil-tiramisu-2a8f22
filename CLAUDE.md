@@ -208,7 +208,9 @@ npm run start        # serve the production build
 npm run lint         # ESLint (Next + React hooks rules)
 npx tsc --noEmit     # standalone type check
 npm test             # unit tests (vitest): weight policy, AI validators, limits, pipeline (fixture provider)
-npm run acceptance   # gold-standard acceptance run against the REAL provider (needs ANTHROPIC_API_KEY)
+npm run acceptance   # gold-standard acceptance run against the REAL provider (needs GROWN_ANTHROPIC_API_KEY)
+npm run acceptance:cache-bench   # prompt-caching benchmark on the gold case (real provider)
+npx vitest run --config vitest.live.config.mts   # narrow live checks (cents), e.g. manufacturer price fetch
 
 # Row-level security tests (needs a local PostgreSQL superuser; never a real Supabase project)
 PGHOST=localhost PGPORT=5432 PGUSER=postgres scripts/test-rls.sh
@@ -345,8 +347,19 @@ Measured live after corrections (Opus 5.5): first analysis $1.26â€“3.07 and 6.5â
 extract ~72 s, personalize ~80 s per attempt); cached personalization of the same product $0.44 and
 ~2.3 min. Proprietary-blend control (Alpha BRAIN) $1.72 / ~5 min. Report both costs separately.
 
-Open follow-ups (documented, not applied): fetch the manufacturer page directly in the pricing step when
-the search snippet carries no price; record lint issue ids when a personalize draft is regenerated.
+Follow-ups applied after founder approval (2026-10-05):
+- **Manufacturer-page price fetch fallback.** When the brand page was retrieved but the search snippet
+  exposed no usable manufacturer price, the pricing step opens the page with the web fetch tool
+  (`web_fetch_20260209`, allowed domains = the brand's hosts) and reads the price from it. A price is
+  accepted only if it cites a URL that was actually fetched and is a manufacturer host; otherwise the
+  existing fallback stands and pricing may remain "unavailable". Never infers. Outcome recorded in
+  `validator.citations.pricingFetch`. Live check: `npx vitest run --config vitest.live.config.mts`
+  (a few cents) read a verified $49 one-time price from spoiledchild.com.
+- **Regeneration check ids.** `validator.regenerationIssueIds` lists the check identifiers that forced a
+  personalize regeneration (ids only, never draft text), also emitted on the `analysis.complete` ops line.
+- **Rubric taxonomy:** an unambiguous reference to the canonical product identity (e.g. "E27", the product
+  name, "this bottle") counts as "this product" in the product-vs-ingredient check; an ingredient-side
+  reference is still required, so generic ingredient prose cannot pass it.
 
 ## 9. Roadmap
 

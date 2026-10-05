@@ -85,6 +85,8 @@ export interface CitationReport {
   manufacturerInEvidence: string[];  // manufacturer/retailer URLs removed from evidence sections
   downgraded: string[];              // evidence entries downgraded to "insufficient"
   tier1Count: number;
+  /** Set by the research pipeline: outcome of the manufacturer-page price fetch fallback. */
+  pricingFetch?: "not-needed" | "skipped-no-manufacturer-url" | "used" | "no-price-on-page" | "failed";
 }
 
 /**

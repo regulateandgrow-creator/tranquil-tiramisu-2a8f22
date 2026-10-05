@@ -87,7 +87,7 @@ function describeRun(title: string, db: MemoryDb, r: Awaited<ReturnType<typeof a
     report(`- Pricing: ${d.pricing.available ? `${d.pricing.currency} ${d.pricing.price} at ${d.pricing.retailer} (${d.pricing.sourceUrl}); ${d.pricing.servingsPerContainer} servings, ${d.pricing.servingsPerDay}/day → monthly ${d.pricing.monthlyCost}, annual ${d.pricing.annualCost}` : `unavailable: ${d.pricing.note}`}`);
     report(`- Cautions (${d.cautions.length}): ${d.cautions.map((c) => c.caution).join("; ")}`);
   }
-  report(`- Citation integrity: ${JSON.stringify(validator.citations ?? null)}; analysis citations dropped: ${validator.droppedAnalysisCitations ?? "n/a"}; personalize attempts: ${validator.personalizeAttempts ?? "n/a"}`);
+  report(`- Citation integrity: ${JSON.stringify(validator.citations ?? null)}; analysis citations dropped: ${validator.droppedAnalysisCitations ?? "n/a"}; personalize attempts: ${validator.personalizeAttempts ?? "n/a"}; regeneration checks: ${JSON.stringify(validator.regenerationIssueIds ?? [])}`);
   if (r.dossier) {
     const d = r.dossier;
     const independent = tiers.filter((t) => t.kind === "independent").length;
@@ -114,6 +114,13 @@ function describeRun(title: string, db: MemoryDb, r: Awaited<ReturnType<typeof a
   report();
 }
 
+/** True when the prose refers to the specific product: generic phrasing, or a distinctive token of its canonical name. */
+function productReferenced(text: string, dossier: ProductDossier): boolean {
+  if (/this (exact |specific )?[\w ]*product|product-specific|exact product|this bottle|this formula/i.test(text)) return true;
+  const tokens = `${dossier.identity.brand} ${dossier.identity.name}`.split(/[^A-Za-z0-9]+/).filter((t) => t.length >= 3 && !/^(the|and|with|liquid|powder|capsule|collagen|supplement|extra|strength)$/i.test(t));
+  return tokens.some((t) => new RegExp(`\\b${t}\\b`, "i").test(text));
+}
+
 function rubric(analysis: PersonalAnalysis, dossier: ProductDossier, goals: string[]) {
   const text = JSON.stringify(analysis);
   const checks: Array<[string, boolean]> = [
@@ -124,7 +131,9 @@ function rubric(analysis: PersonalAnalysis, dossier: ProductDossier, goals: stri
     ["Manufacturer claims listed with a source", dossier.manufacturerClaims.length > 0],
     ["Independent collagen evidence rated with sources", dossier.evidenceByBenefit.some((b) => b.ingredientEvidence.sourceUrls.length > 0 && b.ingredientEvidence.rating !== "none-found")],
     ["Product-specific evidence stated separately", dossier.evidenceByBenefit.every((b) => typeof b.productEvidence.rating === "string")],
-    ["Prose distinguishes product from ingredient evidence", /ingredient|in general|peptides/i.test(analysis.productVsIngredientEvidence) && /this (exact |specific )?[\w ]*product|product-specific|exact product/i.test(analysis.productVsIngredientEvidence)],
+    // Taxonomy clarification (founder-approved): an unambiguous reference to the canonical product identity
+    // (e.g. "E27", the product name, "this bottle") counts as "this product". Ingredient-side reference is still required.
+    ["Prose distinguishes product from ingredient evidence", /ingredient|in general|peptides/i.test(analysis.productVsIngredientEvidence) && productReferenced(analysis.productVsIngredientEvidence, dossier)],
     ["The Catch covers quality/duration/funding/dose", analysis.theCatch.length >= 2],
     ["Liquid delivery claim addressed", /liquid/i.test(analysis.productVsIngredientEvidence + dossier.deliveryFormat.whatEvidenceShows)],
     ["Pricing with monthly and annual cost, or marked unavailable", analysis.moneyTest.pricingAvailable ? analysis.moneyTest.annualCost > 0 : /unavailable|not reliably|couldn't/i.test(analysis.moneyTest.summary + dossier.pricing.note)],

@@ -4,8 +4,8 @@ import { aiDefaults, aiModels } from "../config";
 import { dossierCoreSchema, pricingSchema, type DossierPricing, type ProductCandidate, type ProductDossier, type ProductDossierCore } from "../schemas";
 import { researchSystem, researchUser } from "../prompts/research";
 import { extractSystem, extractUser, extractPricingSystem, extractPricingUser } from "../prompts/extract";
-import { pricingSystem, pricingUser } from "../prompts/pricing";
-import { validateDossierCitations, type CitationReport, normalizeUrl } from "../citations";
+import { pricingSystem, pricingUser, pricingFetchSystem, pricingFetchUser } from "../prompts/pricing";
+import { validateDossierCitations, type CitationReport, normalizeUrl, classifySource, hostOf } from "../citations";
 import { brandSlug, formulationFingerprint, identityFromCandidate, identityKey } from "../identity";
 import { findProductByKey, insertResearch, latestResearch, updateResearchPricing, upsertProduct, type ResearchRow } from "@/lib/db/intelligence";
 
@@ -121,9 +121,34 @@ export async function researchProduct(
   usage = add(usage, extractedPricing.usage);
   raw.push({ step: "extract-pricing", prompt: `${extractPricingSystem}\n\n${pricingPrompt}`, output: extractedPricing.text });
 
+  let pricing = extractedPricing.json as DossierPricing;
+
+  // Manufacturer-page fetch fallback (founder-approved): when the brand page was
+  // retrieved but the search snippet exposed no usable manufacturer price, open the
+  // page directly and read the price from it. Never infers; keeps the existing
+  // fallback when the page still shows no verifiable price.
+  const manufacturerUrls = allowed.filter((u) => classifySource(u, slug).kind === "manufacturer");
+  const priceFromManufacturer = pricing.available && !!pricing.sourceUrl && classifySource(normalizeUrl(pricing.sourceUrl), slug).kind === "manufacturer";
+  let pricingFetchOutcome: "not-needed" | "skipped-no-manufacturer-url" | "used" | "no-price-on-page" | "failed" = "not-needed";
+  if (!priceFromManufacturer) {
+    if (manufacturerUrls.length === 0) {
+      pricingFetchOutcome = "skipped-no-manufacturer-url";
+    } else {
+      const fetched = await fetchManufacturerPrice(provider, candidate, manufacturerUrls, slug, fixtureKey);
+      usage = add(usage, fetched.usage);
+      if (fetched.raw) raw.push(fetched.raw);
+      if (fetched.pricing) {
+        pricing = fetched.pricing;
+        pricingFetchOutcome = "used";
+      } else {
+        pricingFetchOutcome = fetched.failed ? "failed" : "no-price-on-page";
+      }
+    }
+  }
+
   const merged: ProductDossier = normalizeDossier({
     ...(extracted.json as ProductDossierCore),
-    pricing: extractedPricing.json as DossierPricing,
+    pricing,
   });
 
   // 3. Validate citations: fabricated or unsearched URLs cannot survive.
@@ -144,7 +169,42 @@ export async function researchProduct(
     stale: false,
   });
 
-  return { productId: product.id, research, dossier, cached: false, pricingRefreshed: false, report, usage, model: extracted.model, raw };
+  return { productId: product.id, research, dossier, cached: false, pricingRefreshed: false, report: { ...report, pricingFetch: pricingFetchOutcome }, usage, model: extracted.model, raw };
+}
+
+/**
+ * Opens the manufacturer page(s) with the web fetch tool and reads the price.
+ * Returns pricing only when the model cites a fetched manufacturer URL; anything
+ * else is discarded so a price can never be inferred or fabricated.
+ */
+async function fetchManufacturerPrice(
+  provider: AiProvider,
+  candidate: ProductCandidate,
+  manufacturerUrls: string[],
+  slug: string,
+  fixtureKey: string,
+): Promise<{ pricing: DossierPricing | null; failed: boolean; usage: { inputTokens: number; outputTokens: number }; raw: { step: string; prompt: string; output: string } | null }> {
+  const prompt = pricingFetchUser(candidate, manufacturerUrls.slice(0, 2));
+  try {
+    const res = await provider.complete({
+      step: "pricing-fetch",
+      model: aiModels.research,
+      system: pricingFetchSystem,
+      user: prompt,
+      webFetch: { maxUses: 2, allowedDomains: [...new Set(manufacturerUrls.map(hostOf).filter(Boolean))] },
+      jsonSchema: pricingSchema,
+      maxTokens: 2000,
+      effort: "low",
+      fixtureKey,
+    });
+    const p = res.json as DossierPricing;
+    const fetchedUrls = new Set(res.searchedUrls.map((s) => normalizeUrl(s.url)));
+    const src = p.sourceUrl ? normalizeUrl(p.sourceUrl) : "";
+    const ok = p.available && p.price > 0 && !!src && fetchedUrls.has(src) && classifySource(src, slug).kind === "manufacturer";
+    return { pricing: ok ? { ...p, sourceUrl: src } : null, failed: false, usage: res.usage, raw: { step: "pricing-fetch", prompt: `${pricingFetchSystem}\n\n${prompt}`, output: res.text } };
+  } catch {
+    return { pricing: null, failed: true, usage: { inputTokens: 0, outputTokens: 0 }, raw: null };
+  }
 }
 
 async function refreshPricing(
