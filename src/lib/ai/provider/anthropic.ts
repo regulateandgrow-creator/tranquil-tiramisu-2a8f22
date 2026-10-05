@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AiProvider, CompletionRequest, CompletionResult, SearchedUrl } from "./types";
 import { AiProviderError } from "./types";
+import { getAnthropicApiKey } from "../config";
 
 /**
  * Anthropic Claude adapter (server-side only).
@@ -25,7 +26,7 @@ export class AnthropicProvider implements AiProvider {
     // When the hosting environment injects the real key on outbound requests
     // (managed credential), no key exists in the process. The SDK still needs
     // a non-empty value to construct, so a placeholder is used in that case.
-    const key = apiKey ?? process.env.ANTHROPIC_API_KEY ?? "managed-by-environment";
+    const key = apiKey ?? getAnthropicApiKey() ?? "managed-by-environment";
     this.client = new Anthropic({ apiKey: key, timeout: 10 * 60 * 1000, maxRetries: 2 });
   }
 

@@ -23,7 +23,7 @@ import { lintAnalysis } from "@/lib/ai/lint";
 import type { PersonalAnalysis, ProductDossier } from "@/lib/ai/schemas";
 import type { AnalysisRow } from "@/lib/db/intelligence";
 
-if (!process.env.ANTHROPIC_API_KEY && !process.env.GROWN_AI_PROVIDER) process.env.GROWN_AI_PROVIDER = "fixture";
+if (!process.env.GROWN_ANTHROPIC_API_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.GROWN_AI_PROVIDER) process.env.GROWN_AI_PROVIDER = "fixture";
 const providerName = getAiProviderName();
 const REAL = providerName === "anthropic";
 const RUNS = Number(process.env.GROWN_ACCEPTANCE_RUNS ?? (REAL ? 3 : 1));

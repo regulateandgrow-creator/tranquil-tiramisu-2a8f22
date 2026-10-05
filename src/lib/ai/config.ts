@@ -16,10 +16,19 @@ function env(name: string): string | undefined {
   return v && v.trim() ? v.trim() : undefined;
 }
 
+/**
+ * The Anthropic key, server-side only. `GROWN_ANTHROPIC_API_KEY` is read first
+ * because some hosting environments reserve the standard `ANTHROPIC_API_KEY`
+ * name for their own use and never pass it to the app.
+ */
+export function getAnthropicApiKey(): string | undefined {
+  return env("GROWN_ANTHROPIC_API_KEY") ?? env("ANTHROPIC_API_KEY");
+}
+
 export function getAiProviderName(): AiProviderName {
   const explicit = env("GROWN_AI_PROVIDER");
   if (explicit === "fixture" || explicit === "anthropic" || explicit === "none") return explicit;
-  return env("ANTHROPIC_API_KEY") ? "anthropic" : "none";
+  return getAnthropicApiKey() ? "anthropic" : "none";
 }
 
 export const aiModels = {
