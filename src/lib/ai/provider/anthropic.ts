@@ -22,7 +22,11 @@ export class AnthropicProvider implements AiProvider {
   private checked = new Set<string>();
 
   constructor(apiKey?: string) {
-    this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000, maxRetries: 2 });
+    // When the hosting environment injects the real key on outbound requests
+    // (managed credential), no key exists in the process. The SDK still needs
+    // a non-empty value to construct, so a placeholder is used in that case.
+    const key = apiKey ?? process.env.ANTHROPIC_API_KEY ?? "managed-by-environment";
+    this.client = new Anthropic({ apiKey: key, timeout: 10 * 60 * 1000, maxRetries: 2 });
   }
 
   async checkModel(model: string): Promise<void> {
