@@ -32,15 +32,25 @@ one of those, stop and reframe it as literacy.
 
 - **Weight never dominates the dashboard.** Visually prioritize energy, strength, sleep, nutrition,
   mobility, digestion, consistency, and quality of life.
-- **Hide Weight Entirely is a product-level preference, ON by default** (`profiles.hide_weight = true`).
-  When on, no feature may surface weight fields, weight trends, weight prompts, or weight-based
-  encouragement. Enforce it at the source, never cosmetically:
+- **Hide Weight Entirely is a global override, ON by default** (`profiles.hide_weight = true`).
+  When on, no screen, prompt, AI context, AI response, recommendation, progress message, notification,
+  analysis, or future feature may **request, expose, infer, repeat, or use** the user's body weight.
+  Enforce it at the source, never cosmetically:
   - Client UI: wrap anything weight-related in `<WeightSensitive>` (`src/lib/preferences/weight.tsx`)
     or read `useHideWeight()`.
-  - Server Components, Route Handlers, AI prompts: read `getPreferences()` (`src/lib/preferences/server.ts`)
-    and omit weight content before it is generated or rendered.
+  - Server Components, Route Handlers: read `getPreferences()` (`src/lib/preferences/server.ts`).
+  - AI: personal information reaches a prompt only through `buildPersonalContext()`
+    (`src/lib/preferences/weight-policy.ts`), which allow-lists the seven non-scale signals and scrubs
+    weight from free text; every prompt carries `weightPolicyPromptBlock()`; generated output is scanned
+    by `findWeightViolationsDeep()` and regenerated once, then failed closed.
   - Database: `day_check_ins.signals` only accepts the seven approved signals; there is no weight column.
-  - New features must state in their PR how they respect the preference.
+  - Tests: `tests/unit/weight-policy.test.ts` must pass; new features add cases there.
+- **Goal selection and weight visibility are separate concepts.** Never remove a weight-related wellness
+  goal because Hide Weight Entirely is on. The goal is named **"Body composition & weight support"**
+  (never "Weight management"). A woman may want that guidance without weight being displayed, tracked,
+  requested, celebrated, inferred, or used in personalization. With the override on, Intelligence reasons
+  from non-scale context only: her stated goals, nutrition patterns, strength, movement, energy, sleep,
+  satiety, digestion, and other explicitly provided non-weight information.
 - **Never make users feel like they failed.** No red failure states in the first version. Status language is
   `Building`, `Steady`, `Needs attention`, `Not logged yet`. Never `Failed`, `Bad`, `Behind`, `Over limit`.
 - **Associations, never causation.** Any text derived from the user's logs (Works For Me™) describes patterns
@@ -197,6 +207,8 @@ npm run build        # production build (also runs type checks)
 npm run start        # serve the production build
 npm run lint         # ESLint (Next + React hooks rules)
 npx tsc --noEmit     # standalone type check
+npm test             # unit tests (vitest): weight policy, AI validators, limits, pipeline (fixture provider)
+npm run acceptance   # gold-standard acceptance run against the REAL provider (needs ANTHROPIC_API_KEY)
 
 # Row-level security tests (needs a local PostgreSQL superuser; never a real Supabase project)
 PGHOST=localhost PGPORT=5432 PGUSER=postgres scripts/test-rls.sh
@@ -247,9 +259,22 @@ Config: `src/components/navigation/nav-config.ts`.
 7. **Life Is Lifing™** — mode selector NORMAL ROUTINE / MAINTENANCE / REBUILD. Maintenance copy:
    "We're protecting the foundation right now." Focus chips per mode. Persists.
 
-### GROWN. Intelligence (`/intelligence`) — placeholder in Milestone 1
-Explains the three inputs (scan / type / link) and the three promises (what it is / what the evidence says /
-worth your money). Engine contract: `src/lib/ai/types.ts`.
+### GROWN. Intelligence (`/intelligence`) — v1, Type a Product
+Flow: type a product → **Resolve** (candidates; she always confirms the exact variant) → goals
+("What are you hoping this product will do for you?", multi-select incl. "Body composition & weight support",
+plus Other free text) → **Research** (web search → strict Product Dossier, cached per product identity, pricing
+refreshed on its own lifetime) → **Personalize** (dossier + her non-scale context → the GROWN. Breakdown) →
+decision: TRY IT & TRACK IT / SAVE IT / NOT FOR ME.
+
+Breakdown sections: What It Is → What's Actually In It → What They're Selling You → What the Evidence Says
+→ The Catch 👀 → Product Evidence vs Ingredient Evidence → The Money Test 💰 → Your Goal → Goal Fit →
+Simpler Options → Ask Your Clinician → GROWN. TAKE (Evidence Fit, Goal Fit, Value, Formula Transparency,
+Marketing–Evidence Gap) → one thing learned → sources.
+
+Code: `src/lib/ai/` (config, schemas, prompts, provider adapters, pipeline, citations, lint, limits, logging),
+routes under `src/app/api/intelligence/`, UI in `src/components/intelligence/`. Scan and Paste Link are
+placeholders. Analyses produced by the fixture provider carry `model = "fixture"` and show a
+"Scripted test data" badge.
 
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), account
