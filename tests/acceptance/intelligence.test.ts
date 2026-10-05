@@ -159,7 +159,9 @@ describe.runIf(CACHE_BENCH)("Prompt-caching experiment (measured only)", () => {
   it("runs the same gold case with caching off, then on, and compares", async () => {
     const goals = ["skin", "healthy-aging", "hair", "nails", "joints"];
     const results: Array<{ mode: string; r: Awaited<ReturnType<typeof analyze>>; db: MemoryDb }> = [];
-    for (const mode of ["off", "on"]) {
+    // GROWN_CACHE_BENCH_MODES=on runs a single leg (e.g. when a cache-off baseline already exists).
+    const modes = (process.env.GROWN_CACHE_BENCH_MODES ?? "off,on").split(",").map((m) => m.trim()).filter(Boolean);
+    for (const mode of modes) {
       process.env.GROWN_AI_PROMPT_CACHE = mode;
       const db = freshDb();
       const r = await analyze(db, "SpoiledChild E27 Extra Strength Liquid Collagen", goals);
