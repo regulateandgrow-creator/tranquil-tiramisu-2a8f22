@@ -335,13 +335,18 @@ Found by the first real-model run and fixed in code; the fixture provider could 
    arithmetic is recomputed from price, servings and servings/day.
 6. **Personalize:** goal labels are mapped back to goal keys; the diagnosis lint ignores conditional
    cautions ("if you have a thyroid condition…").
-7. **Prompt caching is an experiment only.** `GROWN_AI_PROMPT_CACHE=on` adds top-level `cache_control`
-   to research calls. Measure with `npm run acceptance:cache-bench` (same gold case, off then on); keep
-   only if it saves meaningfully without degrading research quality or reliability. Default off.
+7. **Prompt caching, kept after measurement.** Top-level `cache_control` on research calls. Benchmark
+   (`npm run acceptance:cache-bench`, same gold case, 2026-10-05): off $3.07 / 449 s; on $1.26 / 390 s;
+   research input 490,638 fresh tokens → 24 fresh + 211,232 cache reads + 45,974 cache writes; tier-1
+   sources 17 → 25; manufacturer price used; one personalize attempt; all verification items pass.
+   ON by default; `GROWN_AI_PROMPT_CACHE=off` disables. Re-benchmark after any research-prompt change.
 
-Measured on the first live run (Opus 5.5, before corrections): a fresh analysis costs about $2.1–3.1
-and takes 5–7 minutes; ~85% is research-step input tokens. A repeat analysis of a cached product runs
-only Personalize. Report first-analysis cost and cached-personalization cost separately.
+Measured live after corrections (Opus 5.5): first analysis $1.26–3.07 and 6.5–7.5 min (research ~215 s,
+extract ~72 s, personalize ~80 s per attempt); cached personalization of the same product $0.44 and
+~2.3 min. Proprietary-blend control (Alpha BRAIN) $1.72 / ~5 min. Report both costs separately.
+
+Open follow-ups (documented, not applied): fetch the manufacturer page directly in the pricing step when
+the search snippet carries no price; record lint issue ids when a personalize draft is regenerated.
 
 ## 9. Roadmap
 

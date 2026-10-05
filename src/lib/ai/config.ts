@@ -60,13 +60,13 @@ export const settingEnvOverrides: Record<string, string> = {
 };
 
 /**
- * Prompt caching EXPERIMENT (founder-approved as measured-only). Off by default.
- * GROWN_AI_PROMPT_CACHE=on adds top-level cache_control to research calls so the
- * server-side search loop can reuse its prefix. Keep only if the benchmark shows
- * meaningful savings with no loss of research quality or reliability.
+ * Prompt caching on research calls. Measured live on 2026-10-05 (same gold case,
+ * off vs on): first-analysis cost $3.07 → $1.26, research input tokens 490,638 →
+ * 24 fresh + 211,232 cache reads, same latency, equal-or-better research quality,
+ * no reliability change. Kept ON by default; GROWN_AI_PROMPT_CACHE=off disables it.
  */
 export function promptCacheEnabled(): boolean {
-  return env("GROWN_AI_PROMPT_CACHE") === "on";
+  return env("GROWN_AI_PROMPT_CACHE") !== "off";
 }
 
 export function rawLogsEnabled(): boolean {
