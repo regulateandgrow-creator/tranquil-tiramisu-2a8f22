@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { primaryNav, secondaryNav, type NavItem } from "./nav-config";
-import { demoUser } from "@/lib/demo/user";
+import type { CurrentUser } from "@/lib/auth/current-user";
+import { SignOutButton } from "./SignOutButton";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -37,7 +38,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: CurrentUser }) {
   const pathname = usePathname();
 
   return (
@@ -63,15 +64,16 @@ export function Sidebar() {
 
       <div className="mt-auto rounded-2xl border border-line bg-warm-white/80 p-3.5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-soft to-gold-soft font-serif text-lg font-semibold text-espresso">
-            {demoUser.firstName[0]}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-soft to-gold-soft font-serif text-lg font-semibold text-espresso">
+            {user.firstName[0]}
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-espresso">
-              {demoUser.firstName} {demoUser.lastName}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold text-espresso">{user.firstName}</p>
+            <p className="truncate text-xs text-espresso-soft">
+              {user.mode === "demo" ? "Demo account" : user.email}
             </p>
-            <p className="text-xs text-espresso-soft">Demo account</p>
           </div>
+          {user.mode === "live" && <SignOutButton compact />}
         </div>
       </div>
     </aside>

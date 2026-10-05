@@ -230,7 +230,38 @@ My Body, Nourish, Move, Progress, My Products, Works For Me, Weekly Body Meeting
 
 ---
 
-## 8. Roadmap
+## 8. Milestone 2 decisions (approved by founder)
+
+Build order, one commit per tested stage: **Accounts → Persistence + Settings → GROWN. Intelligence v1 → My Products.**
+Intelligence v1 ships **Type a Product first**; Paste a Link starts only after typed analysis passes founder testing.
+Camera scanning is Milestone 3.
+
+- **Auth:** Supabase email magic link only. Transactional email stays plain. No welcome/marketing sequences yet.
+- **Demo mode:** with no Supabase env vars the app runs on local demo data and never breaks.
+- **Usage limits:** resolved server-side in this order: per-profile override → tier limit → global default.
+  Private-beta default is **5 analyses per user per day**, stored in `app_config` with env override
+  `GROWN_ANALYSIS_DAILY_LIMIT`. Never hard-code the number in product code.
+- **Caching:** product identity key = normalized brand + product name + variant + form. Dossiers are versioned
+  rows with a formulation fingerprint; analyses point at the dossier version they used. Lifetimes are
+  configurable: research (30d), pricing (7d), goal supplement (30d).
+- **Facts vs. personalization:** `product_research` is shared and cacheable; `analyses` are per user and
+  never served to another user.
+- **Citations:** every citation URL must have been returned by web search in the same pipeline run;
+  anything else is dropped and the claim is marked "source not confirmed". Manufacturer domains are only
+  allowed in claims / product-fact / pricing sections. Require the strongest relevant independent evidence
+  available. **No numeric citation quota.** Never add weaker or irrelevant sources to fill a count.
+- **AI debugging logs (data minimization):** raw prompts and raw model outputs are retained only for a short,
+  configurable window (`GROWN_AI_RAW_LOG_RETENTION_DAYS`, beta default 14) and then deleted by a scheduled
+  job. Durable operational logs are structured and contain only: user id, analysis id, product identity,
+  model, token usage, latency, validator results, and error codes. No free-text goals or wellness details in
+  durable logs. Revisit before public launch (see `docs/DATA_RETENTION.md` once written).
+- **Model:** configured in one place (`src/lib/ai/config.ts`) with env override; a startup check against the
+  Models endpoint must confirm availability. Current choice: Claude Opus 5.5 for research and personalization.
+- **Acceptance test:** SpoiledChild E27 Extra Strength Liquid Collagen, goals skin/healthy aging, hair/nails,
+  joints. Scripted, run three times, reviewed as the rendered page. Plus two controls: a bare ingredient
+  (must ask for clarification) and a proprietary-blend product (must flag undisclosed doses).
+
+## 9. Roadmap
 
 - **Milestone 1 (done):** shell, design system, navigation, Home dashboard, check-in, foundation,
   Works For Me preview, Life Is Lifing, Thought, Intelligence placeholder.
