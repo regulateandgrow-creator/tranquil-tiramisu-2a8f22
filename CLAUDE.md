@@ -491,6 +491,13 @@ Follow-ups applied after founder approval (2026-10-05):
 - Cloud sessions cannot open raw database connections; use the Management API scripts and a scoped token.
   `SUPABASE_DB_URL` belongs on a laptop only.
 
+### Stage 11 production check (2026-10-09)
+
+- No migration. Production smoke test 63 checks: public Privacy/Terms readable signed out, user B deleted
+  her own account through the UI and the cascade removed everything hers; cleaned to zero. Lesson kept in
+  the test: a node-side `signOut()` defaults to global scope and revokes the browser session too; use
+  `{ scope: "local" }` in tests.
+
 ### Stage 10 production (2026-10-09, applied with founder approval)
 
 - `20261009000005_weekly_meetings.sql` applied via the ledger; verified (11 tables with RLS, 4 meeting

@@ -211,7 +211,7 @@ const { error: anErr, data: anRows } = await anonClient.from("profiles").select(
 ok("anonymous (anon key, no session): profiles returns nothing", !!anErr || anRows?.length === 0);
 const { error: anIns } = await anonClient.from("day_check_ins").insert({ user_id: idA, day: "2026-10-06", feeling: "Rested", signals: {} });
 ok("anonymous: cannot insert a check-in", !!anIns);
-await userClient.auth.signOut();
+await userClient.auth.signOut({ scope: "local" }); // never revoke B's browser session
 
 // ---------- Public pages while signed out, and self-service deletion (Stage 11) ----------
 const pub = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -220,9 +220,11 @@ for (const path of ["/privacy", "/terms"]) {
   const r = await P.goto(base + path, { waitUntil: "networkidle" });
   ok(`public ${path} readable signed out`, r.status() === 200 && new URL(P.url()).pathname === path);
 }
-ok("privacy page says weight is never collected", (await P.evaluate(() => document.body.innerText)).includes("Your weight.") === false ? (await P.goto(base + "/privacy"), (await P.evaluate(() => document.body.innerText)).includes("never collect")) : true);
+await P.goto(base + "/privacy", { waitUntil: "networkidle" });
+ok("privacy page says weight is never collected", (await P.evaluate(() => document.body.innerText)).includes("Your weight."));
 await pub.close();
-// B deletes her own account through the UI; the database must cascade.
+// B deletes her own account through the UI; the database must cascade. Fresh link first, in case her session moved on.
+await B.goto(await linkFor(EMAIL_B), { waitUntil: "networkidle" });
 await B.goto(base + "/settings", { waitUntil: "networkidle" });
 await B.getByRole("button", { name: "Delete my account" }).click();
 await B.getByRole("button", { name: "Yes, delete everything" }).click();
