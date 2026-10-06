@@ -300,6 +300,11 @@ research, caching, limits and validation are shared. She always confirms the exa
   only, never stored) and the product name comes from JSON-LD Product → og:title (site name stripped) →
   `<title>`. No model call. Unreachable or no product name → 422.
 - Both count against the same daily limit; a failed read creates no analysis and counts no usage.
+- Live check (2026-10-08, `tests/live/label-read.test.ts`, synthetic label): Opus 5.5 read brand, name
+  with strength, flavor, form and category correctly, 3.3k input / ~110 output tokens, ~3.4 s, about
+  $0.015 per scan before the usual resolve step. Pack size/count/volume are kept out of the query
+  (`stripSizes`). `tests/live/link-read.test.ts` reads a real manufacturer page (no cost); this cloud
+  environment's egress blocks it, production hosting does not.
 
 ### My Products (`/my-products`) — Stage 4
 A view over her completed analyses; nothing new is stored. One entry per product (repeat analyses fold

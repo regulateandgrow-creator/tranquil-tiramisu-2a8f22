@@ -31,8 +31,16 @@ export function cleanLabel(raw: Partial<LabelResult>): LabelResult {
   return result;
 }
 
+/** Pack sizes, counts and volumes are not identity; keep them out of the lookup query. */
+const SIZE_RE = /\b\d+(?:\.\d+)?\s?(?:fl\.?\s?oz|oz|ml|l|g|kg|mg|lb|lbs|ct|count|capsules|tablets|softgels|gummies|servings|pack)\b\.?/gi;
+
+export function stripSizes(s: string): string {
+  return s.replace(SIZE_RE, "").replace(/\s*[,·|/]\s*(?=[,·|/]|$)/g, "").replace(/^[\s,·|/]+|[\s,·|/]+$/g, "").replace(/\s+/g, " ").trim();
+}
+
 export function labelQuery(r: LabelResult): string {
-  return r.readable ? [r.brand, r.name, r.variant].filter(Boolean).join(" ").slice(0, 200) : "";
+  if (!r.readable) return "";
+  return [r.brand, r.name, stripSizes(r.variant)].filter(Boolean).join(" ").slice(0, 200);
 }
 
 export async function readLabel(

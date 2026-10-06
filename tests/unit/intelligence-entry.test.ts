@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { extractProductFromHtml, validateProductUrl } from "@/lib/intelligence/link";
 import { sniffImageType } from "@/lib/intelligence/image";
-import { cleanLabel, labelQuery } from "@/lib/ai/pipeline/label";
+import { cleanLabel, labelQuery, stripSizes } from "@/lib/ai/pipeline/label";
 
 describe("validateProductUrl", () => {
   it("accepts public http(s) product pages", () => {
@@ -66,6 +66,14 @@ describe("cleanLabel / labelQuery", () => {
   it("builds the typed-style query from a readable label", () => {
     const r = cleanLabel({ readable: true, brand: " SpoiledChild ", name: "E27 Liquid  Collagen", variant: "Extra Strength", form: "liquid", category: "collagen", confidence: "high", note: "" });
     expect(labelQuery(r)).toBe("SpoiledChild E27 Liquid Collagen Extra Strength");
+  });
+  it("keeps flavor but drops pack size, count and volume from the variant", () => {
+    expect(stripSizes("Mixed berry, 16 fl oz")).toBe("Mixed berry");
+    expect(stripSizes("60 capsules")).toBe("");
+    expect(stripSizes("Lavender · 120 ct")).toBe("Lavender");
+    expect(stripSizes("Unflavored 1 lb")).toBe("Unflavored");
+    const r = cleanLabel({ readable: true, brand: "SpoiledChild", name: "E27 Extra Strength Liquid Collagen", variant: "Mixed berry, 16 fl oz", confidence: "high" });
+    expect(labelQuery(r)).toBe("SpoiledChild E27 Extra Strength Liquid Collagen Mixed berry");
   });
   it("treats a label with no name as unreadable and defaults confidence", () => {
     const r = cleanLabel({ readable: true, brand: "X", name: "", confidence: "very" as never });
