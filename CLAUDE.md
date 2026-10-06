@@ -360,13 +360,24 @@ Templates say "have tended to sit higher/lower", "have averaged"; `CAUSAL_WORDS`
 cause/because/improve/boost/fix/result/works. At most 8 insights, ranked by effect × sample. The page
 explains the method and shows days logged of 28; Home shows the top three.
 
+### My Body (`/my-body`) and Progress (`/progress`) — Milestone 4, Stage 9
+Both computed on the client from the 28-day store (`src/lib/progress/summary.ts`, pure, unit-tested).
+- **My Body**: today's seven signal cards, then **four weeks of signals**: one strip per signal, 28 cells,
+  a single sage ramp light→dark by level (`--sage-1…5`, lightness-monotonic; lightest step outlined), empty
+  cells for days not noted, each cell named "Oct 3: Bright" for hover and screen readers, a legend, and
+  "Mostly Steady · 12 of 28 days". A **No scale here** note states the Hide weight setting in her terms.
+- **Progress**: four stat tiles (days checked in, plate days, moving days with rest days counted, strength
+  days) all "of 28"; a **week by week** table naming each week's usual rating in the signal's own level
+  words with a one-hue swatch; **foundation this month** meters (Steady days of noted days per pillar); the
+  four key strips; and a footer that nothing is a score. No targets, no streaks, no weight, no red.
+
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
 "More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
 "What we keep" list. Demo mode saves on-device.
 
 ### Placeholder routes
-My Body, Progress, Weekly Body Meeting render
+Weekly Body Meeting renders
 `<PagePlaceholder>` with their positioning copy and target milestone.
 
 ---

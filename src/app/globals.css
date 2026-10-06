@@ -16,6 +16,12 @@
 
   /* derived tints */
   --sage-soft: #e7ebe2;
+  /* Sequential sage ramp for signal strips: one hue, light -> dark, lightness-monotonic. */
+  --sage-1: #e7ebe2;
+  --sage-2: #cbd4c1;
+  --sage-3: #a7b29c;
+  --sage-4: #86947a;
+  --sage-5: #647259;
   --rose-soft: #f3e3df;
   --gold-soft: #f2e9d3;
   --cream-deep: #efe6d8;
@@ -35,6 +41,11 @@
   --color-espresso-soft: var(--espresso-soft);
   --color-sage: var(--sage);
   --color-sage-soft: var(--sage-soft);
+  --color-sage-1: var(--sage-1);
+  --color-sage-2: var(--sage-2);
+  --color-sage-3: var(--sage-3);
+  --color-sage-4: var(--sage-4);
+  --color-sage-5: var(--sage-5);
   --color-rose: var(--rose);
   --color-rose-soft: var(--rose-soft);
   --color-gold: var(--gold);
