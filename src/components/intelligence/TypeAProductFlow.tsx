@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Camera, Check, Keyboard, Link2, Search, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -10,14 +10,24 @@ import { Chip } from "@/components/ui/Chip";
 import { goalOptions } from "@/lib/ai/goals";
 import type { ProductCandidate } from "@/lib/ai/schemas";
 import { cn } from "@/lib/utils/cn";
+import { ScanAProduct, type EntryResolved } from "./ScanAProduct";
+import { PasteALink } from "./PasteALink";
+
+export type EntryMode = "type" | "scan" | "link";
+const ENTRY_TABS: Array<{ key: EntryMode; label: string; icon: typeof Keyboard }> = [
+  { key: "type", label: "Type it", icon: Keyboard },
+  { key: "scan", label: "Scan a label", icon: Camera },
+  { key: "link", label: "Paste a link", icon: Link2 },
+];
 
 type Step =
   | { kind: "type" }
-  | { kind: "confirm"; id: string; confidence: string; candidates: ProductCandidate[]; clarification: string }
+  | { kind: "confirm"; id: string; confidence: string; candidates: ProductCandidate[]; clarification: string; readNote?: string }
   | { kind: "goals"; id: string; candidate: ProductCandidate; candidateIndex: number };
 
 interface Props {
   initialQuery?: string;
+  initialMode?: EntryMode;
   usage: { limit: number; remaining: number; resetsAt: string | null } | null;
 }
 
@@ -30,9 +40,10 @@ function limitMessage(resetsAt: string | null, limit: number) {
   return `You've used today's ${limit} analyses. Your next one opens up at ${when}. Nothing is lost; your products are saved.`;
 }
 
-export function TypeAProductFlow({ initialQuery = "", usage }: Props) {
+export function TypeAProductFlow({ initialQuery = "", initialMode = "type", usage }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "type" });
+  const [mode, setMode] = useState<EntryMode>(initialMode);
   const [query, setQuery] = useState(initialQuery);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,9 +103,38 @@ export function TypeAProductFlow({ initialQuery = "", usage }: Props) {
     );
   }
 
+  const onEntryResolved = (data: EntryResolved, readNote?: string) =>
+    setStep({ kind: "confirm", id: data.id, confidence: data.confidence, candidates: data.candidates as ProductCandidate[], clarification: data.clarification, readNote });
+  const onEntryLimit = (data: { resetsAt: string | null; limit: number }) => setLimitNote(limitMessage(data.resetsAt, data.limit));
+
   if (step.kind === "type") {
     return (
-      <Card className="space-y-4">
+      <Card className="space-y-5">
+        <div role="tablist" aria-label="How would you like to tell us about the product?" className="flex gap-2 overflow-x-auto pb-1">
+          {ENTRY_TABS.map((t) => {
+            const Icon = t.icon;
+            const selected = mode === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => { setMode(t.key); setError(null); }}
+                className={cn(
+                  "inline-flex h-10 shrink-0 items-center gap-2 rounded-pill border px-4 text-[15px] font-medium transition-all",
+                  selected ? "border-espresso bg-espresso text-cream" : "border-line-strong bg-warm-white text-espresso hover:bg-cream",
+                )}
+              >
+                <Icon className="h-4 w-4" strokeWidth={1.75} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        {mode === "scan" && <ScanAProduct busy={busy} setBusy={setBusy} onResolved={onEntryResolved} onLimit={onEntryLimit} friendlyError={friendlyError} />}
+        {mode === "link" && <PasteALink busy={busy} setBusy={setBusy} onResolved={onEntryResolved} onLimit={onEntryLimit} friendlyError={friendlyError} />}
+        {mode === "type" && (
         <form onSubmit={submitQuery} className="space-y-4">
           <div>
             <label htmlFor="product-query" className="block text-[15px] font-semibold text-espresso">
@@ -118,6 +158,7 @@ export function TypeAProductFlow({ initialQuery = "", usage }: Props) {
             {error && <p id="query-error" role="alert" className="mt-2 text-sm text-rose">{error}</p>}
           </div>
         </form>
+        )}
         {usage && (
           <p className="text-xs text-espresso-soft">
             {usage.remaining} of {usage.limit} analyses left today.
@@ -135,6 +176,7 @@ export function TypeAProductFlow({ initialQuery = "", usage }: Props) {
         <h2 className="font-serif text-2xl font-medium text-espresso">
           {none ? "We couldn't place that one." : step.confidence === "high" ? "Is this the one?" : "Which one do you mean?"}
         </h2>
+        {step.readNote && <p className="text-sm text-espresso-soft">{step.readNote}</p>}
         {step.clarification && <p className="text-[15px] text-espresso-soft">{step.clarification}</p>}
         {!none && (
           <ul className="space-y-2" aria-label="Product candidates">
@@ -161,7 +203,7 @@ export function TypeAProductFlow({ initialQuery = "", usage }: Props) {
           </ul>
         )}
         <button type="button" onClick={() => setStep({ kind: "type" })} className="text-sm font-semibold text-espresso underline-offset-4 hover:underline">
-          {none ? "Try again with the brand name" : "None of these. Let me retype it"}
+          {none ? "Try again with the brand name" : "None of these. Let me try another way"}
         </button>
       </Card>
     );

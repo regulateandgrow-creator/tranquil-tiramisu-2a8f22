@@ -282,9 +282,24 @@ Simpler Options → Ask Your Clinician → GROWN. TAKE (Evidence Fit, Goal Fit, 
 Marketing–Evidence Gap) → one thing learned → sources.
 
 Code: `src/lib/ai/` (config, schemas, prompts, provider adapters, pipeline, citations, lint, limits, logging),
-routes under `src/app/api/intelligence/`, UI in `src/components/intelligence/`. Scan and Paste Link are
-placeholders. Analyses produced by the fixture provider carry `model = "fixture"` and show a
-"Scripted test data" badge.
+routes under `src/app/api/intelligence/`, UI in `src/components/intelligence/`. Analyses produced by the
+fixture provider carry `model = "fixture"` and show a "Scripted test data" badge.
+
+**Three ways in (Stage 7), one pipeline.** Entry tabs: Type it · Scan a label · Paste a link
+(`?mode=type|scan|link` preselects; the Home hero links each). Every entry produces the same short query
+and joins the flow at the confirm step through `startAnalysis()` (`src/lib/ai/pipeline/start.ts`), so
+research, caching, limits and validation are shared. She always confirms the exact product.
+- **Scan a label** (`POST /api/intelligence/scan`, multipart `image`): the browser shrinks the photo to
+  ~1600px JPEG (`compress-image.ts`); the server sniffs the real media type from the bytes (jpeg/png/webp/gif,
+  5 MB cap), checks the daily limit, and asks the model (vision, `aiModels.label`, structured `labelSchema`)
+  for identity only: brand, printed name, printed variant, form, category, readable/confidence/note. No
+  dosages, prices or claims are read. The image is held in memory for one request and never stored; the raw
+  log for the `label` step is prompt + output text with `[image omitted]`. Unreadable → 422 with a kind note.
+- **Paste a link** (`POST /api/intelligence/link`, `{ url }`): http(s) only, no credentials, no private or
+  loopback hosts (`GROWN_LINK_ALLOW_LOCAL=1` only for tests); the page is read once (8 s, 1 MB cap, HTML
+  only, never stored) and the product name comes from JSON-LD Product → og:title (site name stripped) →
+  `<title>`. No model call. Unreachable or no product name → 422.
+- Both count against the same daily limit; a failed read creates no analysis and counts no usage.
 
 ### My Products (`/my-products`) — Stage 4
 A view over her completed analyses; nothing new is stored. One entry per product (repeat analyses fold
@@ -338,8 +353,8 @@ My Body, Progress, Works For Me, Weekly Body Meeting render
 ## 8. Milestone 2 decisions (approved by founder)
 
 Build order, one commit per tested stage: **Accounts → Persistence + Settings → GROWN. Intelligence v1 → My Products.**
-Intelligence v1 ships **Type a Product first**; Paste a Link starts only after typed analysis passes founder testing.
-Camera scanning is Milestone 3.
+Intelligence v1 shipped **Type a Product first**; Paste a Link and camera scanning followed in Milestone 3
+(Stage 7) and reuse the typed pipeline from the confirm step on.
 
 - **Auth:** Supabase email magic link only. Transactional email stays plain. No welcome/marketing sequences yet.
 - **Demo mode:** with no Supabase env vars the app runs on local demo data and never breaks.
@@ -442,6 +457,6 @@ Follow-ups applied after founder approval (2026-10-05):
 - **Milestone 2 (done):** Supabase auth + persistence (check-ins, life mode, profile incl. hide-weight),
   Settings, GROWN. Intelligence v1 (Type a Product via server route with citations), My Products shelf.
   Paste a Link and camera scanning move to Milestone 3.
-- **Milestone 3:** Nourish (done, Stage 5), Move (done, Stage 6), camera scanning and Paste a Link for
+- **Milestone 3 (done):** Nourish (Stage 5), Move (Stage 6), camera scanning and Paste a Link for
   Intelligence (Stage 7).
 - **Milestone 4:** Progress, Works For Me™ pattern engine over real logs, Weekly Body Meeting.

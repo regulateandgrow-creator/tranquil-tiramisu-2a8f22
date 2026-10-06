@@ -36,6 +36,7 @@ export const aiModels = {
   research: env("GROWN_AI_MODEL_RESEARCH") ?? env("GROWN_AI_MODEL") ?? DEFAULT_MODEL,
   extract: env("GROWN_AI_MODEL_EXTRACT") ?? env("GROWN_AI_MODEL") ?? DEFAULT_MODEL,
   personalize: env("GROWN_AI_MODEL_PERSONALIZE") ?? env("GROWN_AI_MODEL") ?? DEFAULT_MODEL,
+  label: env("GROWN_AI_MODEL_LABEL") ?? env("GROWN_AI_MODEL") ?? DEFAULT_MODEL,
 } as const;
 
 /** Code defaults. app_config (database) overrides these; env vars override both. */
@@ -48,6 +49,11 @@ export const aiDefaults = {
   maxQueryLength: 200,
   maxGoalOtherLength: 200,
   webSearchMaxUses: 8,
+  /** Camera scan upload cap after client-side compression. */
+  maxScanBytes: 5 * 1024 * 1024,
+  /** Paste a Link: page size read cap and fetch timeout. */
+  maxLinkBytes: 1024 * 1024,
+  linkTimeoutMs: 8000,
 } as const;
 
 /** Setting keys → environment variable override names. */

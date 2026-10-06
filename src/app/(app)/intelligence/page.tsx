@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Camera, Link2, Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { TypeAProductFlow } from "@/components/intelligence/TypeAProductFlow";
+import { TypeAProductFlow, type EntryMode } from "@/components/intelligence/TypeAProductFlow";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,8 +25,9 @@ const STATUS_LABEL: Record<string, string> = {
   pending: "Starting",
 };
 
-export default async function IntelligencePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { q } = await searchParams;
+export default async function IntelligencePage({ searchParams }: { searchParams: Promise<{ q?: string; mode?: string }> }) {
+  const { q, mode } = await searchParams;
+  const initialMode: EntryMode = mode === "scan" || mode === "link" ? mode : "type";
   const user = await getCurrentUser();
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -46,11 +47,11 @@ export default async function IntelligencePage({ searchParams }: { searchParams:
       />
 
       {ready ? (
-        <TypeAProductFlow initialQuery={q ?? ""} usage={usage ? { limit: usage.limit, remaining: usage.remaining, resetsAt: usage.resetsAt?.toISOString() ?? null } : null} />
+        <TypeAProductFlow initialQuery={q ?? ""} initialMode={initialMode} usage={usage ? { limit: usage.limit, remaining: usage.remaining, resetsAt: usage.resetsAt?.toISOString() ?? null } : null} />
       ) : (
         <Card tone="gold" className="space-y-3">
           <Badge tone="gold">{user.mode === "demo" ? "Demo mode" : "Not switched on yet"}</Badge>
-          <p className="font-serif text-2xl font-medium text-espresso">Type a product, confirm it, tell us your goal, get the Breakdown.</p>
+          <p className="font-serif text-2xl font-medium text-espresso">Type it, scan the label, or paste a link. Confirm it, tell us your goal, get the Breakdown.</p>
           <p className="max-w-prose text-[15px] text-espresso-soft">
             {user.mode === "demo"
               ? "GROWN. Intelligence runs on your private account. Once accounts and the research service are connected, this is where you'll type a product name."
@@ -58,17 +59,6 @@ export default async function IntelligencePage({ searchParams }: { searchParams:
           </p>
         </Card>
       )}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cream-deep text-espresso-soft"><Camera className="h-5 w-5" strokeWidth={1.75} /></span>
-          <div><p className="font-serif text-xl font-medium text-espresso">Scan a product</p><p className="text-sm text-espresso-soft">Point your camera at a label. Coming in Milestone 3.</p></div>
-        </Card>
-        <Card className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cream-deep text-espresso-soft"><Link2 className="h-5 w-5" strokeWidth={1.75} /></span>
-          <div><p className="font-serif text-xl font-medium text-espresso">Paste a product link</p><p className="text-sm text-espresso-soft">Coming after typed analysis passes testing.</p></div>
-        </Card>
-      </div>
 
       {recent.length > 0 && (
         <section className="space-y-3">

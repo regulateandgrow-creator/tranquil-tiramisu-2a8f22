@@ -47,7 +47,13 @@ export class AnthropicProvider implements AiProvider {
   async complete(req: CompletionRequest): Promise<CompletionResult> {
     await this.checkModel(req.model);
 
-    const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: req.user }];
+    const userContent: Anthropic.Beta.BetaContentBlockParam[] = req.image
+      ? [
+          { type: "image", source: { type: "base64", media_type: req.image.mediaType, data: req.image.base64 } },
+          { type: "text", text: req.user },
+        ]
+      : [{ type: "text", text: req.user }];
+    const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: userContent }];
     const tools: Anthropic.Beta.BetaToolUnion[] = [];
     if (req.webSearch) tools.push({ type: "web_search_20260209", name: "web_search", max_uses: req.webSearch.maxUses });
     if (req.webFetch) {

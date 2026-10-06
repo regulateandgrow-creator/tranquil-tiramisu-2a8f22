@@ -227,6 +227,15 @@ export class FixtureProvider implements AiProvider {
     const searched = [PUBMED_SR, NIH_ODS, PUBMED_JOINT, PUBMED_RCT, EXAMINE, MFR, RETAILER].map((url) => ({ url, title: null }));
 
     switch (req.step) {
+      case "label": {
+        // The hint is the uploaded file name; real providers read the pixels instead.
+        const json = key.includes("blank") || key.includes("unreadable")
+          ? { readable: false, brand: "", name: "", variant: "", form: "", category: "", confidence: "low", note: "We couldn't make out a product label in that photo. Try again with the front of the pack in frame." }
+          : key.includes("problend")
+            ? { readable: true, brand: "FocusCo", name: "ProBlend Focus Complex", variant: "", form: "capsule", category: "nootropic blend", confidence: "high", note: "" }
+            : { readable: true, brand: "SpoiledChild", name: "E27 Liquid Collagen", variant: "Extra Strength", form: "liquid", category: "collagen supplement", confidence: "high", note: "" };
+        return { ...base, text: JSON.stringify(json), json, searchedUrls: [] };
+      }
       case "resolve": {
         const json = resolveFor(key);
         return { ...base, text: JSON.stringify(json), json, searchedUrls: [] };

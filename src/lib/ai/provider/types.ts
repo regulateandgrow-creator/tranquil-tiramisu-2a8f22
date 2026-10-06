@@ -3,7 +3,9 @@
  * vendor can change without touching product code.
  */
 
-export type AiStep = "resolve" | "research" | "extract" | "personalize" | "pricing" | "pricing-fetch";
+export type AiStep = "resolve" | "research" | "extract" | "personalize" | "pricing" | "pricing-fetch" | "label";
+
+export type ImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
 export interface CompletionRequest {
   step: AiStep;
@@ -18,6 +20,8 @@ export interface CompletionRequest {
   jsonSchema?: Record<string, unknown>;
   maxTokens: number;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** An image to read alongside the user text (camera scan). Never logged. */
+  image?: { base64: string; mediaType: ImageMediaType };
   /** Opaque hint the fixture provider uses to pick a script; ignored by real providers. */
   fixtureKey?: string;
 }

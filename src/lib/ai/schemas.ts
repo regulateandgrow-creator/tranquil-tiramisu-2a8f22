@@ -83,6 +83,37 @@ export const resolveSchema = {
   },
 } as const;
 
+/* ── Label read (camera scan) ──────────────────────────────── */
+
+export interface LabelResult {
+  /** False when the photo is not a product label or cannot be read. */
+  readable: boolean;
+  brand: string;
+  name: string;
+  variant: string;
+  form: string;
+  category: string;
+  confidence: "high" | "medium" | "low";
+  /** One short line for her, e.g. why it could not be read. */
+  note: string;
+}
+
+export const labelSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["readable", "brand", "name", "variant", "form", "category", "confidence", "note"],
+  properties: {
+    readable: { type: "boolean" },
+    brand: { type: "string" },
+    name: { type: "string" },
+    variant: { type: "string" },
+    form: { type: "string" },
+    category: { type: "string" },
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+    note: { type: "string" },
+  },
+} as const;
+
 /* ── Product Dossier (shared, cacheable facts) ─────────────── */
 
 export interface DossierIngredient {

@@ -137,7 +137,20 @@ ok("A: analysis row complete, model=fixture, decision saved", row.status === "co
 ok("A: analysis points at a product and a dossier version", !!row.product_id && !!row.research_id);
 ok("A: one usage event; structured ops fields present", row.events === 1 && typeof row.latency_ms === "number" && row.has_validator && row.research_cached === false);
 ok("A: raw AI logs carry a 14-day expiry", row.raw_logs > 0 && row.raw_expiry_14d === true, JSON.stringify(row));
-const an2 = await analyze(A, "spoiled child e27 extra strength", ["Joints"]);
+// Stage 7: scan a label (fixture reads the file name; the real provider reads pixels). Joins at confirm.
+await A.goto(base + "/intelligence?mode=scan", { waitUntil: "networkidle" });
+const jpeg = Buffer.from(await A.evaluate(() => { const c = document.createElement("canvas"); c.width = 400; c.height = 300; const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, 400, 300); x.fillStyle = "#000"; x.font = "28px sans-serif"; x.fillText("SpoiledChild E27", 20, 80); return c.toDataURL("image/jpeg", 0.9).split(",")[1]; }), "base64");
+await A.setInputFiles("#scan-file", { name: "spoiledchild-label.jpg", mimeType: "image/jpeg", buffer: jpeg });
+await A.getByRole("button", { name: "Read the label" }).click();
+await A.waitForSelector("text=Is this the one?", { timeout: 60000 });
+await A.locator("ul[aria-label='Product candidates'] li button").first().click();
+await A.getByRole("button", { name: "Joints", exact: true }).click();
+await A.getByRole("button", { name: /Let's look at it/ }).click();
+await A.waitForURL(/\/intelligence\/[0-9a-f-]+$/);
+await waitForBreakdown(A);
+const an2 = A.url().split("/").pop();
+const lbl = q(`select count(*)::int as n, bool_and(prompt like '%[image omitted]%') as text_only from public.ai_raw_logs where analysis_id='${an2}' and step='label'`)[0];
+ok("A: scanned label logged as text only, joined the shared pipeline", lbl.n === 1 && lbl.text_only === true, JSON.stringify(lbl));
 const row2 = q(`select research_cached, research_id, product_id from public.analyses where id='${an2}'`)[0];
 ok("A: second analysis reused the cached dossier", row2.research_cached === true && row2.research_id === row.research_id && row2.product_id === row.product_id);
 ok("A: one dossier version for the product", q(`select count(*)::int as n from public.product_research where product_id='${row.product_id}'`)[0].n === 1);
