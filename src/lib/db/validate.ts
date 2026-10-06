@@ -1,8 +1,9 @@
-import type { BodySignalKey, DayMove, DayNourish, LifeMode, MealSlot, MealTag, MoveDuration, MoveKind, SignalLevel, StrengthArea } from "@/lib/demo/types";
+import type { BodySignalKey, DayMove, DayNourish, LifeMode, MealSlot, MealTag, MeetingIntention, MeetingReflection, MoveDuration, MoveKind, SignalLevel, StrengthArea } from "@/lib/demo/types";
 import { feelingOptions, signalDefinitions } from "@/lib/demo/signals";
 import { lifeModes } from "@/lib/demo/modes";
 import { mealSlots, mealTags, PLANTS_MAX, WATER_MAX } from "@/lib/demo/nourish";
 import { moveDurations, moveKinds, strengthAreas } from "@/lib/demo/move";
+import { intentions, reflections, weekStartOf } from "@/lib/demo/meeting";
 
 /**
  * Input validation for everything that reaches the database.
@@ -111,6 +112,24 @@ export function parseMove(value: unknown): DayMove | null {
     out.strength = strength;
   }
   return out;
+}
+
+const INTENTIONS = new Set<string>(intentions.map((i) => i.key));
+const REFLECTIONS = new Set<string>(reflections.map((r) => r.key));
+
+/** A week start must be a real date that is a Monday. */
+export function parseWeekStart(value: unknown): string | null {
+  const day = parseDayKey(value);
+  if (!day) return null;
+  return weekStartOf(day) === day ? day : null;
+}
+
+export function parseIntention(value: unknown): MeetingIntention | null {
+  return typeof value === "string" && INTENTIONS.has(value) ? (value as MeetingIntention) : null;
+}
+
+export function parseReflection(value: unknown): MeetingReflection | null {
+  return typeof value === "string" && REFLECTIONS.has(value) ? (value as MeetingReflection) : null;
 }
 
 export function parseLifeMode(value: unknown): LifeMode | null {

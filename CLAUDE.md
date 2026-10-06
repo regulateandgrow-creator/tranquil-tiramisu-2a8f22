@@ -129,8 +129,9 @@ src/
 
 Stage 2 stores exactly: `first_name`, `hide_weight`, `life_mode`, and per-day `feeling` + the seven
 `signals`. Stage 5 adds per-day `nourish` (meal tags from a fixed vocabulary, plant servings, glasses of
-water); Stage 6 adds per-day `move` (movement kinds, a duration band, strength areas). Feelings and tags
-are chip values, not free text. No distances, calories, heart rate or weight anywhere. Do not add personal or health fields because the
+water); Stage 6 adds per-day `move` (movement kinds, a duration band, strength areas); Stage 10 adds one
+`weekly_meetings` row per week (an intention chip and a reflection chip). Feelings, tags and chips are
+fixed values, not free text. No distances, calories, heart rate or weight anywhere. Do not add personal or health fields because the
 database could hold them; every new field needs a product reason and a line in this file.
 
 ---
@@ -371,14 +372,25 @@ Both computed on the client from the 28-day store (`src/lib/progress/summary.ts`
   words with a one-hue swatch; **foundation this month** meters (Steady days of noted days per pillar); the
   four key strips; and a footer that nothing is a score. No targets, no streaks, no weight, no red.
 
+### Weekly Body Meeting (`/weekly-body-meeting`) — Milestone 4, Stage 10
+A deterministic, template-based review built on the client from her own logs (`src/lib/meeting/build.ts`,
+pure, unit-tested). Reviews Monday through today of the current week: greeting with days noted, **last
+week's intention** with a three-chip reflection (It stuck / Partly / Life happened, each with a kind
+reply), **this week in your body** (usual rating per signal in its own level words), **the foundation
+this week** (steady days per pillar + the Move week sentence), **what showed up** (top three Works For Me
+patterns), **one thing to carry forward** (the noted pillar with the lowest steady share; a quiet week gets
+"a single tap a day"), and **your intention for the week ahead** (seven fixed chips). Storage:
+`weekly_meetings` (one row per person per Monday; `intention` and `reflection` are check-constrained chip
+values; owner-only RLS). The store holds `meetings` and saves through `saveMeetingAction`; demo mode
+keeps them on-device. No AI call; no free text.
+
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
 "More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
 "What we keep" list. Demo mode saves on-device.
 
 ### Placeholder routes
-Weekly Body Meeting renders
-`<PagePlaceholder>` with their positioning copy and target milestone.
+None remain. `<PagePlaceholder>` stays available for future routes.
 
 ---
 
@@ -491,4 +503,5 @@ Follow-ups applied after founder approval (2026-10-05):
   Paste a Link and camera scanning move to Milestone 3.
 - **Milestone 3 (done):** Nourish (Stage 5), Move (Stage 6), camera scanning and Paste a Link for
   Intelligence (Stage 7).
-- **Milestone 4:** Progress, Works For Me™ pattern engine over real logs, Weekly Body Meeting.
+- **Milestone 4 (done):** Works For Me™ pattern engine over real logs (Stage 8), My Body + Progress
+  (Stage 9), Weekly Body Meeting (Stage 10).

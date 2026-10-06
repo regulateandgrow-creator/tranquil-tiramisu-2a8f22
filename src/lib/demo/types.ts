@@ -72,6 +72,17 @@ export interface DayMove {
   strength?: StrengthArea[];
 }
 
+export type MeetingIntention = "protein_breakfast" | "more_plants" | "water_with_meals" | "daily_walk" | "one_strength" | "earlier_nights" | "keep_as_is";
+export type MeetingReflection = "stuck" | "partly" | "life_happened";
+
+/** Weekly Body Meeting: one row per week, fixed-vocabulary chips only. */
+export interface WeeklyMeeting {
+  /** Monday of the reviewed week, YYYY-MM-DD */
+  weekStart: string;
+  intention?: MeetingIntention;
+  reflection?: MeetingReflection;
+}
+
 export interface DayCheckIn {
   /** Local date key YYYY-MM-DD */
   day: string;

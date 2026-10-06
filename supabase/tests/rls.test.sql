@@ -182,8 +182,38 @@ begin
   end;
 end $$;
 
+-- ---- Weekly Body Meeting (Stage 10) --------------------------------------------
+insert into public.weekly_meetings (user_id, week_start, intention)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '2026-10-05', 'water_with_meals');
+do $$
+begin
+  if (select count(*) from public.weekly_meetings) <> 1 then
+    raise exception 'FAIL: Ana could not save her weekly intention';
+  end if;
+  raise notice 'PASS: Ana can save a weekly intention';
+  begin
+    insert into public.weekly_meetings (user_id, week_start, intention) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '2026-10-12', 'lose weight');
+    raise exception 'FAIL: free-text intention accepted';
+  exception when check_violation then
+    raise notice 'PASS: intentions are a fixed vocabulary, nothing weight-shaped';
+  end;
+  begin
+    insert into public.weekly_meetings (user_id, week_start, intention) values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '2026-10-05', 'daily_walk');
+    raise exception 'FAIL: Ana inserted a meeting for Bea';
+  exception when insufficient_privilege then
+    raise notice 'PASS: Ana cannot write a meeting for Bea';
+  end;
+end $$;
+
 -- ---- Act as Bea -----------------------------------------------------------
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', false);
+do $$
+begin
+  if (select count(*) from public.weekly_meetings) <> 0 then
+    raise exception 'FAIL: Bea can see Ana''s weekly meeting';
+  end if;
+  raise notice 'PASS: weekly meetings are private to their owner';
+end $$;
 
 do $$
 begin

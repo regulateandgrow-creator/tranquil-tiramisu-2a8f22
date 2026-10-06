@@ -3,15 +3,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { updateProfile } from "@/lib/db/profile";
 import { upsertCheckIn } from "@/lib/db/check-ins";
+import { upsertMeeting } from "@/lib/db/meetings";
 import {
   parseDayKey,
   parseFeeling,
   parseFirstName,
   parseHideWeight,
+  parseIntention,
   parseLifeMode,
   parseMove,
   parseNourish,
+  parseReflection,
   parseSignals,
+  parseWeekStart,
 } from "@/lib/db/validate";
 
 export type SaveResult = { ok: true } | { ok: false; error: "unauthenticated" | "invalid" | "failed" };
@@ -79,6 +83,23 @@ export async function saveProfileAction(input: unknown): Promise<SaveResult> {
 
   try {
     await updateProfile(session.supabase, session.userId, patch);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "failed" };
+  }
+}
+
+export async function saveMeetingAction(input: unknown): Promise<SaveResult> {
+  const session = await requireUser();
+  if (!session) return { ok: false, error: "unauthenticated" };
+  const raw = (input ?? {}) as Record<string, unknown>;
+  const weekStart = parseWeekStart(raw.weekStart);
+  if (!weekStart) return { ok: false, error: "invalid" };
+  const intention = raw.intention === undefined || raw.intention === null ? undefined : parseIntention(raw.intention);
+  const reflection = raw.reflection === undefined || raw.reflection === null ? undefined : parseReflection(raw.reflection);
+  if (intention === null || reflection === null) return { ok: false, error: "invalid" };
+  try {
+    await upsertMeeting(session.supabase, session.userId, { weekStart, ...(intention ? { intention } : {}), ...(reflection ? { reflection } : {}) });
     return { ok: true };
   } catch {
     return { ok: false, error: "failed" };

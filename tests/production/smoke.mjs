@@ -108,6 +108,13 @@ await sleep(2500);
 const mv = q(`select move from public.day_check_ins where user_id='${idA}'`);
 ok("A: Move taps saved to the day row", mv.length === 1 && JSON.stringify(mv[0].move) === JSON.stringify({ kinds: ["walk"], duration: "short" }), JSON.stringify(mv));
 
+// Weekly Body Meeting (Stage 10): an intention chip lands in weekly_meetings under this week's Monday
+await A.goto(base + "/weekly-body-meeting", { waitUntil: "networkidle" });
+await A.getByRole("radio", { name: "Water with each meal" }).click();
+await sleep(2500);
+const wm = q(`select week_start, intention, reflection, extract(dow from week_start)::int as dow from public.weekly_meetings where user_id='${idA}'`);
+ok("A: weekly intention saved under a Monday with no reflection yet", wm.length === 1 && wm[0].intention === "water_with_meals" && wm[0].reflection === null && wm[0].dow === 1, JSON.stringify(wm));
+
 // Settings
 await A.goto(base + "/settings", { waitUntil: "networkidle" });
 ok("A: settings shows account email", (await A.textContent("body")).includes(EMAIL_A));
@@ -193,6 +200,8 @@ const { data: cB } = await userClient.from("day_check_ins").select("id");
 ok("B (anon key + session): check-ins query returns none of A's", cB?.length === 0);
 const { data: upd } = await userClient.from("profiles").update({ first_name: "Hacked" }).eq("id", idA).select("id");
 ok("B (anon key + session): updating A's profile affects zero rows", (upd?.length ?? 0) === 0 && q(`select first_name from public.profiles where id='${idA}'`)[0].first_name === "Ana Smoke");
+const { data: mtg } = await userClient.from("weekly_meetings").select("id");
+ok("B (anon key + session): cannot read A's weekly meeting", mtg?.length === 0);
 const { error: cfgErr, data: cfg } = await userClient.from("app_config").select("key");
 ok("B (anon key + session): app_config is not readable", !!cfgErr || cfg?.length === 0);
 const { error: rawErr, data: raw } = await userClient.from("ai_raw_logs").select("id");
@@ -226,8 +235,8 @@ ok("usage_events hold no free text", cols.find((c) => c.table_name === "usage_ev
 const productsNew = q("select id from public.products").map((r) => r.id).filter((id) => !productsBefore.has(id));
 for (const id of [idA, idB]) { const { error } = await admin.auth.admin.deleteUser(id); ok(`cleanup: deleted test user ${id === idA ? "A" : "B"}`, !error, error?.message); }
 for (const pid of productsNew) { const { error } = await admin.from("products").delete().eq("id", pid); ok("cleanup: deleted test product (cascades dossier)", !error, error?.message); }
-const left = q(`select (select count(*)::int from public.profiles where id in ('${idA}','${idB}')) as profiles, (select count(*)::int from public.day_check_ins where user_id in ('${idA}','${idB}')) as check_ins, (select count(*)::int from public.analyses where user_id in ('${idA}','${idB}')) as analyses, (select count(*)::int from public.usage_events where user_id in ('${idA}','${idB}')) as events, (select count(*)::int from public.ai_raw_logs) as raw_logs, (select count(*)::int from public.products) as products, (select count(*)::int from public.product_research where model='fixture') as fixture_dossiers, (select count(*)::int from auth.users) as users`)[0];
+const left = q(`select (select count(*)::int from public.weekly_meetings where user_id in ('${idA}','${idB}')) as meetings, (select count(*)::int from public.profiles where id in ('${idA}','${idB}')) as profiles, (select count(*)::int from public.day_check_ins where user_id in ('${idA}','${idB}')) as check_ins, (select count(*)::int from public.analyses where user_id in ('${idA}','${idB}')) as analyses, (select count(*)::int from public.usage_events where user_id in ('${idA}','${idB}')) as events, (select count(*)::int from public.ai_raw_logs) as raw_logs, (select count(*)::int from public.products) as products, (select count(*)::int from public.product_research where model='fixture') as fixture_dossiers, (select count(*)::int from auth.users) as users`)[0];
 console.log("after cleanup:", JSON.stringify(left));
-ok("cleanup: no test rows remain, user count back to baseline", left.profiles === 0 && left.check_ins === 0 && left.analyses === 0 && left.events === 0 && left.fixture_dossiers === 0 && left.users === usersBefore && left.products === productsBefore.size);
+ok("cleanup: no test rows remain, user count back to baseline", left.meetings === 0 && left.profiles === 0 && left.check_ins === 0 && left.analyses === 0 && left.events === 0 && left.fixture_dossiers === 0 && left.users === usersBefore && left.products === productsBefore.size);
 console.log("console/page errors:", errors.length ? errors : "none");
 console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
