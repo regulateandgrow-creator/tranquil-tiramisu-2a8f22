@@ -21,8 +21,9 @@ function shiftUtcDay(base: Date, days: number): string {
 }
 
 /**
- * Check-ins around "today": the past week (for the Move week strip) plus one day
- * either side, because the server runs in UTC and her day key is local.
+ * Check-ins around "today": the past four weeks (Works For Me, Progress, the Move
+ * week strip) plus one day either side, because the server runs in UTC and her
+ * day key is local.
  */
 export async function getRecentCheckIns(
   supabase: SupabaseClient,
@@ -33,7 +34,7 @@ export async function getRecentCheckIns(
     .from("day_check_ins")
     .select("day,feeling,signals,nourish,move")
     .eq("user_id", userId)
-    .gte("day", shiftUtcDay(now, -7))
+    .gte("day", shiftUtcDay(now, -29))
     .lte("day", shiftUtcDay(now, 1));
 
   if (error) throw new Error(`check-in read failed: ${error.message}`);

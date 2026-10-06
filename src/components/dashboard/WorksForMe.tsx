@@ -16,7 +16,7 @@ const categoryLabel: Record<WorksForMeInsight["category"], string> = {
   digestion: "Digestion",
 };
 
-export function WorksForMe({ insights }: { insights: WorksForMeInsight[] }) {
+export function WorksForMe({ insights, loggedDays = 0, windowDays = 28 }: { insights: WorksForMeInsight[]; loggedDays?: number; windowDays?: number }) {
   return (
     <Card tone="sage" className="flex h-full flex-col">
       <div className="flex items-center gap-2 text-espresso">
@@ -29,6 +29,13 @@ export function WorksForMe({ insights }: { insights: WorksForMeInsight[] }) {
         Here&apos;s what your body has been telling us.
       </h2>
 
+      {insights.length === 0 && (
+        <p className="mt-4 rounded-2xl border border-line bg-warm-white/80 p-4 text-[15px] leading-relaxed text-espresso">
+          {loggedDays < 7
+            ? `Nothing to report yet. ${loggedDays} of the last ${windowDays} days have something noted; patterns start showing after about a week of taps.`
+            : "Your days look fairly even so far. Patterns appear when some days differ from others by enough to mention."}
+        </p>
+      )}
       <ul className="mt-5 space-y-3">
         {insights.slice(0, 3).map((insight) => (
           <li key={insight.id} className="rounded-2xl border border-line bg-warm-white/80 p-4">

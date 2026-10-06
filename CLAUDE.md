@@ -264,8 +264,9 @@ Config: `src/components/navigation/nav-config.ts`.
    (Building / Steady / Needs attention / Not logged yet) and soft progress bars, computed from today's
    own taps (`computeFoundation`). Links to Nourish and Move.
 5. **Today's GROWN. Thought** — rotating supportive message, deterministic per day, "Another thought" button.
-6. **Works For Me™ preview** — "Here's what your body has been telling us." Three association-only insights
-   with category, confidence (Emerging / Consistent) and window. Demo data.
+6. **Works For Me™ preview** — "Here's what your body has been telling us." The top three patterns from
+   her own logs (`findPatterns`), with category, confidence (Emerging / Consistent) and window, or a warm
+   "nothing to report yet" line with days logged.
 7. **Life Is Lifing™** — mode selector NORMAL ROUTINE / MAINTENANCE / REBUILD. Maintenance copy:
    "We're protecting the foundation right now." Focus chips per mode. Persists.
 
@@ -344,13 +345,28 @@ per-day row (`day_check_ins.move`, validated by `public.move_valid`):
 - Life Is Lifing note and a daily "Learn your body" literacy line (general knowledge, never from logs).
 The store now fetches the past 7 days of check-ins (was ±1) so the strip has data in live mode.
 
+### Works For Me™ (`/works-for-me`) — Milestone 4, Stage 8
+The pattern engine (`src/lib/patterns/engine.ts`, pure, unit-tested) reads the last 28 days of her own
+check-ins (signals, Nourish, Move) plus the products on her Trying shelf, on the client from the day store
+(the bootstrap now loads 28 days). Three kinds of pattern, all worded as tendencies:
+- **Behavior ↔ rating co-occurrence**: protein anchor at breakfast, 3+ plant servings, 6+ glasses, caffeine,
+  a drink, something sweet, a skipped meal, moved, strength day, walk, 30+ minutes, restful night ↔ energy,
+  mood, digestion, hunger, cravings same-day and **sleep the following night**. Needs ≥3 logged days on each
+  side and a mean difference ≥0.75 (consistent: ≥5 each and ≥1.0). Days without the relevant log are
+  skipped, never counted as "without".
+- **Steadiness**: a signal at its middle level or better (cravings: mild or quieter) on ≥70% of ≥5 logged days.
+- **Products**: ratings before vs since the day she chose Try it & track it, "Early days; keep noting."
+Templates say "have tended to sit higher/lower", "have averaged"; `CAUSAL_WORDS` is a test guard against
+cause/because/improve/boost/fix/result/works. At most 8 insights, ranked by effect × sample. The page
+explains the method and shows days logged of 28; Home shows the top three.
+
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
 "More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
 "What we keep" list. Demo mode saves on-device.
 
 ### Placeholder routes
-My Body, Progress, Works For Me, Weekly Body Meeting render
+My Body, Progress, Weekly Body Meeting render
 `<PagePlaceholder>` with their positioning copy and target milestone.
 
 ---

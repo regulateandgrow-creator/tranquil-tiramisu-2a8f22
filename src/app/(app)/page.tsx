@@ -2,14 +2,15 @@ import { Greeting } from "@/components/dashboard/Greeting";
 import { IntelligenceHero } from "@/components/dashboard/IntelligenceHero";
 import { MyBodyToday } from "@/components/dashboard/MyBodyToday";
 import { MyFoundationLive } from "@/components/dashboard/MyFoundationLive";
-import { WorksForMe } from "@/components/dashboard/WorksForMe";
+import { WorksForMeLive } from "@/components/patterns/WorksForMeLive";
 import { LifeIsLifing } from "@/components/dashboard/LifeIsLifing";
 import { GrownThought } from "@/components/dashboard/GrownThought";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { demoInsights } from "@/lib/demo/insights";
+import { getTriedProducts } from "@/lib/patterns/products";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
+  const products = await getTriedProducts(user);
   return (
     <div className="space-y-10 lg:space-y-12">
       <Greeting firstName={user.firstName} />
@@ -28,7 +29,7 @@ export default async function HomePage() {
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-        <WorksForMe insights={demoInsights} />
+        <WorksForMeLive products={products} />
         <LifeIsLifing />
       </div>
     </div>
