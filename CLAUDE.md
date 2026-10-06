@@ -481,6 +481,13 @@ Follow-ups applied after founder approval (2026-10-05):
 - Cloud sessions cannot open raw database connections; use the Management API scripts and a scoped token.
   `SUPABASE_DB_URL` belongs on a laptop only.
 
+### Stage 10 production (2026-10-09, applied with founder approval)
+
+- `20261009000005_weekly_meetings.sql` applied via the ledger; verified (11 tables with RLS, 4 meeting
+  policies, trigger, ledger of five files); 40-assertion RLS suite rolled back on production; production
+  smoke test 59 checks (now saving a weekly intention and proving another user cannot read it) passed
+  and cleaned up.
+
 ### Stage 6 production (2026-10-08, applied with founder approval)
 
 - `20261008000004_move.sql` applied via the ledger; verified (`move` jsonb + `move_valid()`, ledger lists four
