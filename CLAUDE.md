@@ -406,6 +406,13 @@ Follow-ups applied after founder approval (2026-10-05):
 - Cloud sessions cannot open raw database connections; use the Management API scripts and a scoped token.
   `SUPABASE_DB_URL` belongs on a laptop only.
 
+### Stage 5 production (2026-10-07, applied with founder approval)
+
+- `20261007000003_nourish.sql` applied through the ledger-aware applier; verified: 10 tables with RLS,
+  `nourish` jsonb column + `nourish_valid()`, ledger lists all three files; the 32-assertion RLS suite ran
+  against production rolled back; production smoke test 55 checks (now including Nourish taps) passed and
+  cleaned up. `tests/production/smoke.mjs` needs `playwright` resolvable from the repo (not a dependency).
+
 ## 9. Roadmap
 
 - **Milestone 1 (done):** shell, design system, navigation, Home dashboard, check-in, foundation,

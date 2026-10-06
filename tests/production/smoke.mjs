@@ -90,6 +90,16 @@ await sleep(2000);
 ci = q(`select signals from public.day_check_ins where user_id='${idA}'`);
 ok("A: clearing a signal removes it from the row", ci.length === 1 && ci[0].signals.energy === undefined && ci[0].signals.sleep === 4, JSON.stringify(ci));
 
+// Nourish (Stage 5): taps land in the same day row, validated by the database
+await A.goto(base + "/nourish", { waitUntil: "networkidle" });
+await A.getByRole("group", { name: "Breakfast tags" }).getByRole("button", { name: "Protein anchor" }).click();
+await A.getByRole("group", { name: "Water" }).getByRole("button", { name: "One more glass" }).click();
+await A.getByRole("group", { name: "Water" }).getByRole("button", { name: "One more glass" }).click();
+await sleep(2500);
+const nr = q(`select nourish, signals from public.day_check_ins where user_id='${idA}'`);
+ok("A: Nourish taps saved to the day row, signals kept", nr.length === 1 && nr[0].nourish.water === 2 && nr[0].nourish.meals.breakfast[0] === "protein" && nr[0].signals.sleep === 4, JSON.stringify(nr));
+ok("A: Home foundation reflects Nourish", (await A.goto(base + "/", { waitUntil: "networkidle" }), await sleep(400), /One protein anchor so far/.test(await A.evaluate(() => document.body.innerText))));
+
 // Settings
 await A.goto(base + "/settings", { waitUntil: "networkidle" });
 ok("A: settings shows account email", (await A.textContent("body")).includes(EMAIL_A));
