@@ -16,6 +16,7 @@ export interface DayCheckInRow {
   day: string; // YYYY-MM-DD
   feeling: string | null;
   signals: Record<string, number>;
+  nourish: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

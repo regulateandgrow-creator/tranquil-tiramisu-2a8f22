@@ -1,4 +1,5 @@
-import { Beef, Wheat, Droplets, Footprints, Moon, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Beef, Wheat, Droplets, Footprints, Moon, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -54,20 +55,36 @@ function PillarRow({ pillar }: { pillar: FoundationPillar }) {
   );
 }
 
-export function MyFoundation({ pillars }: { pillars: FoundationPillar[] }) {
+interface MyFoundationProps {
+  pillars: FoundationPillar[];
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  /** Link to Nourish, shown on Home. */
+  showLink?: boolean;
+}
+
+export function MyFoundation({
+  pillars,
+  eyebrow = "The basics that hold everything up",
+  title = "My Foundation",
+  description = "No scores to beat. Just a gentle picture of where today stands.",
+  showLink = true,
+}: MyFoundationProps) {
   return (
     <section className="space-y-4">
-      <SectionHeading
-        eyebrow="The basics that hold everything up"
-        title="My Foundation"
-        description="No scores to beat. Just a gentle picture of where today stands."
-      />
+      <SectionHeading eyebrow={eyebrow} title={title} description={description} />
       <Card>
         <ul className="divide-y divide-line">
           {pillars.map((p) => (
             <PillarRow key={p.key} pillar={p} />
           ))}
         </ul>
+        {showLink && (
+          <Link href="/nourish" className="mt-5 inline-flex items-center gap-1.5 text-[15px] font-semibold text-espresso transition-colors hover:text-charcoal">
+            Tap today&apos;s plate in Nourish <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
       </Card>
     </section>
   );

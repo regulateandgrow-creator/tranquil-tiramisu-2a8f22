@@ -183,6 +183,7 @@ await ctxA.close(); await ctxB.close(); await browser.close();
 
 // ---------- Data minimization ----------
 const cols = q(`select table_name, string_agg(column_name, ',' order by ordinal_position) as cols from information_schema.columns where table_schema='public' and table_name in ('profiles','day_check_ins','usage_events','analyses') group by 1 order by 1`);
+ok("day_check_ins holds feeling, signals and nourish only", cols.find((c) => c.table_name === "day_check_ins").cols === "id,user_id,day,feeling,signals,created_at,updated_at,nourish");
 console.log("columns:", JSON.stringify(cols));
 ok("no weight-related columns anywhere", cols.every((c) => !/weight|lb|kg|bmi/i.test(c.cols.replace("hide_weight", ""))));
 ok("profiles holds only first_name, hide_weight, life_mode, tier, limit override + timestamps", cols.find((c) => c.table_name === "profiles").cols === "id,first_name,hide_weight,life_mode,created_at,updated_at,tier,analysis_limit_override");

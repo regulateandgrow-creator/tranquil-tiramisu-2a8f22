@@ -128,7 +128,8 @@ src/
 ### Data minimization
 
 Stage 2 stores exactly: `first_name`, `hide_weight`, `life_mode`, and per-day `feeling` + the seven
-`signals`. Feelings are chip values, not free text. Do not add personal or health fields because the
+`signals`. Stage 5 adds per-day `nourish` (meal tags from a fixed vocabulary, plant servings, glasses of
+water). Feelings and tags are chip values, not free text. Do not add personal or health fields because the
 database could hold them; every new field needs a product reason and a line in this file.
 
 ---
@@ -216,7 +217,7 @@ npx vitest run --config vitest.live.config.mts   # narrow live checks (cents), e
 PGHOST=localhost PGPORT=5432 PGUSER=postgres scripts/test-rls.sh
 
 # Real project, via the Management API (scoped SUPABASE_ACCESS_TOKEN; see docs/SUPABASE_SETUP.md §7)
-node scripts/apply-production-migrations.mjs   # first-time only; refuses if tables exist
+node scripts/apply-production-migrations.mjs   # applies pending files per the app_migrations ledger (--dry-run to list)
 node scripts/verify-production-db.mjs          # schema, RLS, grants, cron + RLS suite rolled back
 node tests/production/smoke.mjs                # end-to-end against the real project, fixture AI, self-cleaning
 ```
@@ -259,7 +260,8 @@ Config: `src/components/navigation/nav-config.ts`.
 3. **My Body Today** — 7 compact cards (Energy, Sleep, Hunger, Cravings, Digestion, Mood, Movement), each a
    5-step tap bar with descriptive labels. Tapping the selected level clears it. Persists for the day.
 4. **My Foundation** — Protein, Fiber, Hydration, Movement, Sleep with status badges
-   (Building / Steady / Needs attention / Not logged yet) and soft progress bars. Demo data.
+   (Building / Steady / Needs attention / Not logged yet) and soft progress bars, computed from today's
+   own taps (`computeFoundation`). Links to Nourish.
 5. **Today's GROWN. Thought** — rotating supportive message, deterministic per day, "Another thought" button.
 6. **Works For Me™ preview** — "Here's what your body has been telling us." Three association-only insights
    with category, confidence (Emerging / Consistent) and window. Demo data.
@@ -292,13 +294,27 @@ three-way decision toggle that writes through the existing decision route. Demo 
 read-only shelf. On phones, Settings carries the secondary destinations (`MoreLinks`).
 Code: `src/lib/products/my-products.ts` (pure builder, unit-tested), `src/components/products/*`.
 
+### Nourish (`/nourish`) — Milestone 3, Stage 5
+Nutrition literacy, not counting: no calories, no grams, no weight. Three tap controls on the existing
+per-day row (`day_check_ins.nourish`, validated by `public.nourish_valid`):
+- **Today's plate** — four slots (Breakfast, Lunch, Dinner, Snacks & extras), each a row of fixed tags:
+  Protein anchor · Colorful plants · Whole grains · Healthy fats · Fermented · Something sweet · A drink ·
+  Caffeine · Skipped it. Vocabulary lives in `src/lib/demo/nourish.ts` and must match the SQL function.
+- **Plants & water** — two steppers: plant servings 0–8, glasses of water 0–12.
+- **Your foundation today** — Protein / Fiber / Hydration computed from the taps
+  (`src/lib/foundation/compute.ts`). Protein counts meals with a protein anchor; "Needs attention" only
+  when two or more meals are logged without one. Life Is Lifing maintenance/rebuild adds a note that
+  fewer taps are plenty. A daily "Learn your food" literacy line (general knowledge, never from her logs).
+**My Foundation on Home is real now**: Protein/Fiber/Hydration from Nourish, Movement and Sleep from the
+body signals (Move will refine Movement). `demoFoundation` is gone; demo mode computes from on-device taps.
+
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
 "More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
 "What we keep" list. Demo mode saves on-device.
 
 ### Placeholder routes
-My Body, Nourish, Move, Progress, Works For Me, Weekly Body Meeting render
+My Body, Move, Progress, Works For Me, Weekly Body Meeting render
 `<PagePlaceholder>` with their positioning copy and target milestone.
 
 ---
@@ -397,6 +413,6 @@ Follow-ups applied after founder approval (2026-10-05):
 - **Milestone 2 (done):** Supabase auth + persistence (check-ins, life mode, profile incl. hide-weight),
   Settings, GROWN. Intelligence v1 (Type a Product via server route with citations), My Products shelf.
   Paste a Link and camera scanning move to Milestone 3.
-- **Milestone 3:** Nourish (meals, protein/fiber/hydration logging), Move (everyday movement + strength),
-  image scanning via Claude vision.
+- **Milestone 3:** Nourish (done, Stage 5), Move (everyday movement + strength), camera scanning and
+  Paste a Link for Intelligence.
 - **Milestone 4:** Progress, Works For Me™ pattern engine over real logs, Weekly Body Meeting.

@@ -104,6 +104,51 @@ begin
   end;
 end $$;
 
+-- ---- Nourish (Stage 5): fixed vocabulary, validated at the database ----------
+update public.day_check_ins
+   set nourish = '{"plants":3,"water":5,"meals":{"breakfast":["protein","plants"],"lunch":["skipped"]}}'
+ where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+do $$
+begin
+  if (select nourish->>'plants' from public.day_check_ins where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') <> '3' then
+    raise exception 'FAIL: valid nourish was not stored';
+  end if;
+  raise notice 'PASS: Ana can log her plate, plants and water';
+end $$;
+do $$
+begin
+  begin
+    update public.day_check_ins set nourish = '{"meals":{"dinner":["calories"]}}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: unknown meal tag was accepted';
+  exception when check_violation then
+    raise notice 'PASS: unknown meal tag rejected (fixed vocabulary only)';
+  end;
+  begin
+    update public.day_check_ins set nourish = '{"plants":9}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: out-of-range plants accepted';
+  exception when check_violation then
+    raise notice 'PASS: out-of-range plant servings rejected';
+  end;
+  begin
+    update public.day_check_ins set nourish = '{"water":2.5}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: fractional water accepted';
+  exception when check_violation then
+    raise notice 'PASS: fractional water rejected';
+  end;
+  begin
+    update public.day_check_ins set nourish = '{"meals":{"brunch":["protein"]}}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: unknown meal slot accepted';
+  exception when check_violation then
+    raise notice 'PASS: unknown meal slot rejected';
+  end;
+  begin
+    update public.day_check_ins set nourish = '{"weight":150}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: a weight key was accepted in nourish';
+  exception when check_violation then
+    raise notice 'PASS: no weight key can be stored in nourish';
+  end;
+end $$;
+
 -- ---- Act as Bea -----------------------------------------------------------
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', false);
 

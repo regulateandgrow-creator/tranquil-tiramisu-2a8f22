@@ -1,6 +1,7 @@
-import type { BodySignalKey, LifeMode, SignalLevel } from "@/lib/demo/types";
+import type { BodySignalKey, DayNourish, LifeMode, MealSlot, MealTag, SignalLevel } from "@/lib/demo/types";
 import { feelingOptions, signalDefinitions } from "@/lib/demo/signals";
 import { lifeModes } from "@/lib/demo/modes";
+import { mealSlots, mealTags, PLANTS_MAX, WATER_MAX } from "@/lib/demo/nourish";
 
 /**
  * Input validation for everything that reaches the database.
@@ -31,6 +32,44 @@ export function parseSignals(value: unknown): Partial<Record<BodySignalKey, Sign
     if (!SIGNAL_KEYS.has(key)) return null;
     if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1 || raw > 5) return null;
     out[key as BodySignalKey] = raw as SignalLevel;
+  }
+  return out;
+}
+
+const MEAL_SLOTS = new Set<string>(mealSlots.map((m) => m.key));
+const MEAL_TAGS = new Set<string>(mealTags.map((t) => t.key));
+
+function parseCount(raw: unknown, max: number): number | null | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0 || raw > max) return null;
+  return raw;
+}
+
+/** Nourish: plant servings, glasses of water and meal tags from the fixed vocabulary. Empty object allowed. */
+export function parseNourish(value: unknown): DayNourish | null {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  for (const key of Object.keys(raw)) if (!["plants", "water", "meals"].includes(key)) return null;
+  const out: DayNourish = {};
+  const plants = parseCount(raw.plants, PLANTS_MAX);
+  const water = parseCount(raw.water, WATER_MAX);
+  if (plants === null || water === null) return null;
+  if (plants !== undefined) out.plants = plants;
+  if (water !== undefined) out.water = water;
+  if (raw.meals !== undefined) {
+    if (!raw.meals || typeof raw.meals !== "object" || Array.isArray(raw.meals)) return null;
+    const meals: Partial<Record<MealSlot, MealTag[]>> = {};
+    for (const [slot, tags] of Object.entries(raw.meals as Record<string, unknown>)) {
+      if (!MEAL_SLOTS.has(slot) || !Array.isArray(tags)) return null;
+      const seen = new Set<string>();
+      for (const t of tags) {
+        if (typeof t !== "string" || !MEAL_TAGS.has(t) || seen.has(t)) return null;
+        seen.add(t);
+      }
+      meals[slot as MealSlot] = [...seen] as MealTag[];
+    }
+    out.meals = meals;
   }
   return out;
 }

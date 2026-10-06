@@ -1,13 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DayCheckIn } from "@/lib/demo/types";
 import type { DayCheckInRow } from "./types";
-import { parseSignals } from "./validate";
+import { parseNourish, parseSignals } from "./validate";
 
-function toCheckIn(row: Pick<DayCheckInRow, "day" | "feeling" | "signals">): DayCheckIn {
+function toCheckIn(row: Pick<DayCheckInRow, "day" | "feeling" | "signals" | "nourish">): DayCheckIn {
+  const nourish = parseNourish(row.nourish) ?? {};
   return {
     day: row.day,
     feeling: row.feeling ?? undefined,
     signals: parseSignals(row.signals) ?? {},
+    ...(Object.keys(nourish).length > 0 ? { nourish } : {}),
   };
 }
 
@@ -27,7 +29,7 @@ export async function getRecentCheckIns(
 ): Promise<Record<string, DayCheckIn>> {
   const { data, error } = await supabase
     .from("day_check_ins")
-    .select("day,feeling,signals")
+    .select("day,feeling,signals,nourish")
     .eq("user_id", userId)
     .gte("day", shiftUtcDay(now, -1))
     .lte("day", shiftUtcDay(now, 1));
@@ -46,6 +48,7 @@ export async function upsertCheckIn(supabase: SupabaseClient, userId: string, ch
       day: checkIn.day,
       feeling: checkIn.feeling ?? null,
       signals: checkIn.signals,
+      nourish: checkIn.nourish ?? {},
     },
     { onConflict: "user_id,day" },
   );

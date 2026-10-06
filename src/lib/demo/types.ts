@@ -49,9 +49,22 @@ export interface DemoUser {
   hideWeight: boolean;
 }
 
+export type MealSlot = "breakfast" | "lunch" | "dinner" | "snacks";
+
+/** Fixed vocabulary for what was on the plate. Never free text. */
+export type MealTag = "protein" | "plants" | "grains" | "fats" | "fermented" | "sweet" | "drink" | "caffeine" | "skipped";
+
+/** Nourish: taps, not counting. Plants 0–8 servings, water 0–12 glasses. */
+export interface DayNourish {
+  plants?: number;
+  water?: number;
+  meals?: Partial<Record<MealSlot, MealTag[]>>;
+}
+
 export interface DayCheckIn {
   /** Local date key YYYY-MM-DD */
   day: string;
   feeling?: string;
   signals: Partial<Record<BodySignalKey, SignalLevel>>;
+  nourish?: DayNourish;
 }

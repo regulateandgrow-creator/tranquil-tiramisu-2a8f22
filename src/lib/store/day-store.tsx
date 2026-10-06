@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { BodySignalKey, DayCheckIn, LifeMode, SignalLevel } from "@/lib/demo/types";
+import type { BodySignalKey, DayCheckIn, DayNourish, LifeMode, MealSlot, MealTag, SignalLevel } from "@/lib/demo/types";
 import { dayKey } from "@/lib/utils/date";
 import { saveCheckInAction, saveLifeModeAction, saveProfileAction, type SaveResult } from "./actions";
 
@@ -169,7 +169,7 @@ function createStore(mode: StoreMode, initial: DayStoreInitial): Store {
       const day = touched.checkInDay;
       schedule(`check-in:${day}`, () => {
         const checkIn = state.checkIns[day] ?? { day, signals: {} };
-        return saveCheckInAction({ day, feeling: checkIn.feeling ?? null, signals: checkIn.signals });
+        return saveCheckInAction({ day, feeling: checkIn.feeling ?? null, signals: checkIn.signals, nourish: checkIn.nourish ?? {} });
       });
     }
   };
@@ -223,6 +223,10 @@ export interface DayStoreValue {
   checkIn: DayCheckIn;
   setFeeling: (feeling: string | undefined) => void;
   setSignal: (key: BodySignalKey, level: SignalLevel | undefined) => void;
+  nourish: DayNourish;
+  toggleMealTag: (slot: MealSlot, tag: MealTag) => void;
+  setPlants: (count: number) => void;
+  setWater: (count: number) => void;
   loggedCount: number;
   sync: SyncStatus;
 }
@@ -274,6 +278,27 @@ export function useDayStore(): DayStoreValue {
     [updateCheckIn],
   );
 
+  const updateNourish = useCallback(
+    (fn: (n: DayNourish) => DayNourish) => updateCheckIn((c) => ({ ...c, nourish: fn(c.nourish ?? {}) })),
+    [updateCheckIn],
+  );
+
+  const toggleMealTag = useCallback(
+    (slot: MealSlot, tag: MealTag) =>
+      updateNourish((n) => {
+        const current = n.meals?.[slot] ?? [];
+        const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
+        const meals = { ...(n.meals ?? {}) };
+        if (next.length === 0) delete meals[slot];
+        else meals[slot] = next;
+        return { ...n, meals };
+      }),
+    [updateNourish],
+  );
+
+  const setPlants = useCallback((count: number) => updateNourish((n) => ({ ...n, plants: count })), [updateNourish]);
+  const setWater = useCallback((count: number) => updateNourish((n) => ({ ...n, water: count })), [updateNourish]);
+
   return {
     today,
     profile: snapshot.profile,
@@ -283,6 +308,10 @@ export function useDayStore(): DayStoreValue {
     checkIn,
     setFeeling,
     setSignal,
+    nourish: checkIn.nourish ?? {},
+    toggleMealTag,
+    setPlants,
+    setWater,
     loggedCount: Object.keys(checkIn.signals).length,
     sync: snapshot.sync,
   };

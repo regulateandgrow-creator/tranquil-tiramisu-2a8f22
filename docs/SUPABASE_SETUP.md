@@ -89,7 +89,7 @@ stored in its environment). Use a **scoped personal access token** instead:
 3. Allow `*.supabase.co` and `api.supabase.com` in the environment's network policy.
 
 ```bash
-node scripts/apply-production-migrations.mjs    # refuses if public.profiles already exists
+node scripts/apply-production-migrations.mjs    # applies pending files per the app_migrations ledger
 node scripts/verify-production-db.mjs           # schema, RLS, grants, cron, RLS suite (rolled back)
 node scripts/supabase-sql.mjs "select now()"    # ad-hoc SQL (SQL_READ_ONLY=1 for the read-only role)
 ```
