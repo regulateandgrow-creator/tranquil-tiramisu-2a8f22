@@ -1,15 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DayCheckIn } from "@/lib/demo/types";
 import type { DayCheckInRow } from "./types";
-import { parseNourish, parseSignals } from "./validate";
+import { parseMove, parseNourish, parseSignals } from "./validate";
 
-function toCheckIn(row: Pick<DayCheckInRow, "day" | "feeling" | "signals" | "nourish">): DayCheckIn {
+function toCheckIn(row: Pick<DayCheckInRow, "day" | "feeling" | "signals" | "nourish" | "move">): DayCheckIn {
   const nourish = parseNourish(row.nourish) ?? {};
+  const move = parseMove(row.move) ?? {};
   return {
     day: row.day,
     feeling: row.feeling ?? undefined,
     signals: parseSignals(row.signals) ?? {},
     ...(Object.keys(nourish).length > 0 ? { nourish } : {}),
+    ...(Object.keys(move).length > 0 ? { move } : {}),
   };
 }
 
@@ -19,8 +21,8 @@ function shiftUtcDay(base: Date, days: number): string {
 }
 
 /**
- * Check-ins around "today". The server runs in UTC but her day key is local,
- * so we fetch one day either side and let the client pick its own today.
+ * Check-ins around "today": the past week (for the Move week strip) plus one day
+ * either side, because the server runs in UTC and her day key is local.
  */
 export async function getRecentCheckIns(
   supabase: SupabaseClient,
@@ -29,9 +31,9 @@ export async function getRecentCheckIns(
 ): Promise<Record<string, DayCheckIn>> {
   const { data, error } = await supabase
     .from("day_check_ins")
-    .select("day,feeling,signals,nourish")
+    .select("day,feeling,signals,nourish,move")
     .eq("user_id", userId)
-    .gte("day", shiftUtcDay(now, -1))
+    .gte("day", shiftUtcDay(now, -7))
     .lte("day", shiftUtcDay(now, 1));
 
   if (error) throw new Error(`check-in read failed: ${error.message}`);
@@ -49,6 +51,7 @@ export async function upsertCheckIn(supabase: SupabaseClient, userId: string, ch
       feeling: checkIn.feeling ?? null,
       signals: checkIn.signals,
       nourish: checkIn.nourish ?? {},
+      move: checkIn.move ?? {},
     },
     { onConflict: "user_id,day" },
   );

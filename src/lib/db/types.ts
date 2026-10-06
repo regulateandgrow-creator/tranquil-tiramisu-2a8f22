@@ -17,6 +17,7 @@ export interface DayCheckInRow {
   feeling: string | null;
   signals: Record<string, number>;
   nourish: Record<string, unknown>;
+  move: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

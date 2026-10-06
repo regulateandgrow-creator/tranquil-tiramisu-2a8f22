@@ -100,6 +100,14 @@ const nr = q(`select nourish, signals from public.day_check_ins where user_id='$
 ok("A: Nourish taps saved to the day row, signals kept", nr.length === 1 && nr[0].nourish.water === 2 && nr[0].nourish.meals.breakfast[0] === "protein" && nr[0].signals.sleep === 4, JSON.stringify(nr));
 ok("A: Home foundation reflects Nourish", (await A.goto(base + "/", { waitUntil: "networkidle" }), await sleep(400), /One protein anchor so far/.test(await A.evaluate(() => document.body.innerText))));
 
+// Move (Stage 6)
+await A.goto(base + "/move", { waitUntil: "networkidle" });
+await A.getByRole("group", { name: "Movement kinds" }).getByRole("button", { name: "Walk" }).click();
+await A.getByRole("radio", { name: "15 to 30 min" }).click();
+await sleep(2500);
+const mv = q(`select move from public.day_check_ins where user_id='${idA}'`);
+ok("A: Move taps saved to the day row", mv.length === 1 && JSON.stringify(mv[0].move) === JSON.stringify({ kinds: ["walk"], duration: "short" }), JSON.stringify(mv));
+
 // Settings
 await A.goto(base + "/settings", { waitUntil: "networkidle" });
 ok("A: settings shows account email", (await A.textContent("body")).includes(EMAIL_A));
@@ -193,7 +201,7 @@ await ctxA.close(); await ctxB.close(); await browser.close();
 
 // ---------- Data minimization ----------
 const cols = q(`select table_name, string_agg(column_name, ',' order by ordinal_position) as cols from information_schema.columns where table_schema='public' and table_name in ('profiles','day_check_ins','usage_events','analyses') group by 1 order by 1`);
-ok("day_check_ins holds feeling, signals and nourish only", cols.find((c) => c.table_name === "day_check_ins").cols === "id,user_id,day,feeling,signals,created_at,updated_at,nourish");
+ok("day_check_ins holds feeling, signals, nourish and move only", cols.find((c) => c.table_name === "day_check_ins").cols === "id,user_id,day,feeling,signals,created_at,updated_at,nourish,move");
 console.log("columns:", JSON.stringify(cols));
 ok("no weight-related columns anywhere", cols.every((c) => !/weight|lb|kg|bmi/i.test(c.cols.replace("hide_weight", ""))));
 ok("profiles holds only first_name, hide_weight, life_mode, tier, limit override + timestamps", cols.find((c) => c.table_name === "profiles").cols === "id,first_name,hide_weight,life_mode,created_at,updated_at,tier,analysis_limit_override");

@@ -9,6 +9,7 @@ import {
   parseFirstName,
   parseHideWeight,
   parseLifeMode,
+  parseMove,
   parseNourish,
   parseSignals,
 } from "@/lib/db/validate";
@@ -33,11 +34,12 @@ export async function saveCheckInAction(input: unknown): Promise<SaveResult> {
   const day = parseDayKey(raw.day);
   const signals = parseSignals(raw.signals ?? {});
   const nourish = parseNourish(raw.nourish);
-  if (!day || !signals || !nourish) return { ok: false, error: "invalid" };
+  const move = parseMove(raw.move);
+  if (!day || !signals || !nourish || !move) return { ok: false, error: "invalid" };
   const feeling = parseFeeling(raw.feeling) ?? undefined;
 
   try {
-    await upsertCheckIn(session.supabase, session.userId, { day, feeling, signals, nourish });
+    await upsertCheckIn(session.supabase, session.userId, { day, feeling, signals, nourish, move });
     return { ok: true };
   } catch {
     return { ok: false, error: "failed" };

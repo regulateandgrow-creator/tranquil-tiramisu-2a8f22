@@ -61,10 +61,22 @@ export interface DayNourish {
   meals?: Partial<Record<MealSlot, MealTag[]>>;
 }
 
+export type MoveKind = "walk" | "strength" | "stretch" | "yoga" | "cardio" | "chores" | "garden" | "dance" | "swim" | "cycle" | "rest";
+export type MoveDuration = "few" | "short" | "medium" | "long";
+export type StrengthArea = "legs" | "upper" | "core" | "full" | "balance";
+
+/** Move: what kind, roughly how long, what strength touched. No distances, no calories. */
+export interface DayMove {
+  kinds?: MoveKind[];
+  duration?: MoveDuration;
+  strength?: StrengthArea[];
+}
+
 export interface DayCheckIn {
   /** Local date key YYYY-MM-DD */
   day: string;
   feeling?: string;
   signals: Partial<Record<BodySignalKey, SignalLevel>>;
   nourish?: DayNourish;
+  move?: DayMove;
 }

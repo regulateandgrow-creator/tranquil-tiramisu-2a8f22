@@ -1,7 +1,8 @@
-import type { BodySignalKey, DayNourish, LifeMode, MealSlot, MealTag, SignalLevel } from "@/lib/demo/types";
+import type { BodySignalKey, DayMove, DayNourish, LifeMode, MealSlot, MealTag, MoveDuration, MoveKind, SignalLevel, StrengthArea } from "@/lib/demo/types";
 import { feelingOptions, signalDefinitions } from "@/lib/demo/signals";
 import { lifeModes } from "@/lib/demo/modes";
 import { mealSlots, mealTags, PLANTS_MAX, WATER_MAX } from "@/lib/demo/nourish";
+import { moveDurations, moveKinds, strengthAreas } from "@/lib/demo/move";
 
 /**
  * Input validation for everything that reaches the database.
@@ -70,6 +71,44 @@ export function parseNourish(value: unknown): DayNourish | null {
       meals[slot as MealSlot] = [...seen] as MealTag[];
     }
     out.meals = meals;
+  }
+  return out;
+}
+
+const MOVE_KINDS = new Set<string>(moveKinds.map((k) => k.key));
+const MOVE_DURATIONS = new Set<string>(moveDurations.map((d) => d.key));
+const STRENGTH_AREAS = new Set<string>(strengthAreas.map((a) => a.key));
+
+function parseUniqueList<T extends string>(raw: unknown, allowed: Set<string>): T[] | null {
+  if (!Array.isArray(raw)) return null;
+  const seen = new Set<string>();
+  for (const t of raw) {
+    if (typeof t !== "string" || !allowed.has(t) || seen.has(t)) return null;
+    seen.add(t);
+  }
+  return [...seen] as T[];
+}
+
+/** Move: movement kinds, a rough duration band and strength areas, all from fixed vocabularies. */
+export function parseMove(value: unknown): DayMove | null {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  for (const key of Object.keys(raw)) if (!["kinds", "duration", "strength"].includes(key)) return null;
+  const out: DayMove = {};
+  if (raw.kinds !== undefined) {
+    const kinds = parseUniqueList<MoveKind>(raw.kinds, MOVE_KINDS);
+    if (!kinds) return null;
+    out.kinds = kinds;
+  }
+  if (raw.duration !== undefined) {
+    if (typeof raw.duration !== "string" || !MOVE_DURATIONS.has(raw.duration)) return null;
+    out.duration = raw.duration as MoveDuration;
+  }
+  if (raw.strength !== undefined) {
+    const strength = parseUniqueList<StrengthArea>(raw.strength, STRENGTH_AREAS);
+    if (!strength) return null;
+    out.strength = strength;
   }
   return out;
 }

@@ -51,12 +51,35 @@ export function computeFoundation(checkIn: DayCheckIn): FoundationPillar[] {
       : `${water} glasses. Nicely steady.`;
 
   const movement = checkIn.signals.movement;
-  const movementStatus: FoundationStatus = movement === undefined ? "not-logged" : movement >= 4 ? "steady" : "building";
-  const movementDetail = movement === undefined
-    ? "Not logged yet. Everyday movement counts, not just workouts."
-    : movement >= 4
-      ? "A moving day. Everyday movement counts."
-      : "A lighter day. Maintenance is progress.";
+  const kinds = checkIn.move?.kinds ?? [];
+  const rest = kinds.includes("rest");
+  const strength = kinds.includes("strength");
+  const duration = checkIn.move?.duration;
+  let movementStatus: FoundationStatus;
+  let movementDetail: string;
+  let movementProgress: number | undefined;
+  if (rest) {
+    movementStatus = "building";
+    movementDetail = "Rest day noted. Recovery is where strength is built.";
+    movementProgress = 0.5;
+  } else if (kinds.length > 0) {
+    const substantial = strength || (duration !== undefined && duration !== "few");
+    movementStatus = substantial ? "steady" : "building";
+    movementDetail = strength
+      ? "Strength today. That's the habit that keeps bones and muscle."
+      : substantial
+        ? "A moving day. Everyday movement counts."
+        : "A few minutes of movement noted. Small and often adds up.";
+    movementProgress = strength ? 1 : duration === "long" || duration === "medium" ? 0.85 : duration === "short" ? 0.65 : 0.35;
+  } else if (movement !== undefined) {
+    movementStatus = movement >= 4 ? "steady" : "building";
+    movementDetail = movement >= 4 ? "A moving day. Everyday movement counts." : "A lighter day. Maintenance is progress.";
+    movementProgress = clamp01(movement / 5);
+  } else {
+    movementStatus = "not-logged";
+    movementDetail = "Not logged yet. Everyday movement counts, not just workouts.";
+    movementProgress = undefined;
+  }
 
   const sleep = checkIn.signals.sleep;
   const sleepStatus: FoundationStatus = sleep === undefined ? "not-logged" : sleep >= 4 ? "steady" : "building";
@@ -70,7 +93,7 @@ export function computeFoundation(checkIn: DayCheckIn): FoundationPillar[] {
     { key: "protein", label: "Protein", status: proteinStatus, progress: slotsLogged === 0 ? undefined : clamp01(anchors / 3), detail: proteinDetail },
     { key: "fiber", label: "Fiber", status: fiberStatus, progress: plants === 0 ? undefined : clamp01(plants / 5), detail: fiberDetail },
     { key: "hydration", label: "Hydration", status: hydrationStatus, progress: water === 0 ? undefined : clamp01(water / 8), detail: hydrationDetail },
-    { key: "movement", label: "Movement", status: movementStatus, progress: movement === undefined ? undefined : clamp01(movement / 5), detail: movementDetail },
+    { key: "movement", label: "Movement", status: movementStatus, progress: movementProgress, detail: movementDetail },
     { key: "sleep", label: "Sleep", status: sleepStatus, progress: sleep === undefined ? undefined : clamp01(sleep / 5), detail: sleepDetail },
   ];
 }

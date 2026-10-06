@@ -129,7 +129,8 @@ src/
 
 Stage 2 stores exactly: `first_name`, `hide_weight`, `life_mode`, and per-day `feeling` + the seven
 `signals`. Stage 5 adds per-day `nourish` (meal tags from a fixed vocabulary, plant servings, glasses of
-water). Feelings and tags are chip values, not free text. Do not add personal or health fields because the
+water); Stage 6 adds per-day `move` (movement kinds, a duration band, strength areas). Feelings and tags
+are chip values, not free text. No distances, calories, heart rate or weight anywhere. Do not add personal or health fields because the
 database could hold them; every new field needs a product reason and a line in this file.
 
 ---
@@ -261,7 +262,7 @@ Config: `src/components/navigation/nav-config.ts`.
    5-step tap bar with descriptive labels. Tapping the selected level clears it. Persists for the day.
 4. **My Foundation** — Protein, Fiber, Hydration, Movement, Sleep with status badges
    (Building / Steady / Needs attention / Not logged yet) and soft progress bars, computed from today's
-   own taps (`computeFoundation`). Links to Nourish.
+   own taps (`computeFoundation`). Links to Nourish and Move.
 5. **Today's GROWN. Thought** — rotating supportive message, deterministic per day, "Another thought" button.
 6. **Works For Me™ preview** — "Here's what your body has been telling us." Three association-only insights
    with category, confidence (Emerging / Consistent) and window. Demo data.
@@ -308,13 +309,28 @@ per-day row (`day_check_ins.nourish`, validated by `public.nourish_valid`):
 **My Foundation on Home is real now**: Protein/Fiber/Hydration from Nourish, Movement and Sleep from the
 body signals (Move will refine Movement). `demoFoundation` is gone; demo mode computes from on-device taps.
 
+### Move (`/move`) — Milestone 3, Stage 6
+Body literacy: everyday movement and strength both count, neither needs a gym. One jsonb column on the
+per-day row (`day_check_ins.move`, validated by `public.move_valid`):
+- **Today's movement** — kind chips (Walk, Strength, Stretch & mobility, Yoga or Pilates, Cardio,
+  Housework & errands, Gardening, Dance, Swim, Cycle, Rest day); a rest day stands alone. Once a kind is
+  tapped, a rough duration (a few minutes / 15–30 / 30–60 / an hour or more). When Strength is tapped,
+  areas (Legs & glutes, Upper body, Core, Full body, Balance & carries). Vocabulary in `src/lib/demo/move.ts`.
+- **A week at a glance** — seven dots from the last seven local days (`src/lib/foundation/week.ts`): moved,
+  moved with strength, rest, not noted. Counts only. No streaks, no targets, never "missed".
+- **How it felt** — the same Movement body signal as Home (`SignalCard`, extracted from MyBodyToday).
+- **Movement and rest today** — Movement and Sleep pillars. Movement prefers Move taps over the signal:
+  strength or 15+ minutes → Steady, a few minutes → Building, rest day → Building with recovery copy.
+- Life Is Lifing note and a daily "Learn your body" literacy line (general knowledge, never from logs).
+The store now fetches the past 7 days of check-ins (was ±1) so the strip has data in live mode.
+
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
 "More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
 "What we keep" list. Demo mode saves on-device.
 
 ### Placeholder routes
-My Body, Move, Progress, Works For Me, Weekly Body Meeting render
+My Body, Progress, Works For Me, Weekly Body Meeting render
 `<PagePlaceholder>` with their positioning copy and target milestone.
 
 ---
@@ -420,6 +436,6 @@ Follow-ups applied after founder approval (2026-10-05):
 - **Milestone 2 (done):** Supabase auth + persistence (check-ins, life mode, profile incl. hide-weight),
   Settings, GROWN. Intelligence v1 (Type a Product via server route with citations), My Products shelf.
   Paste a Link and camera scanning move to Milestone 3.
-- **Milestone 3:** Nourish (done, Stage 5), Move (everyday movement + strength), camera scanning and
-  Paste a Link for Intelligence.
+- **Milestone 3:** Nourish (done, Stage 5), Move (done, Stage 6), camera scanning and Paste a Link for
+  Intelligence (Stage 7).
 - **Milestone 4:** Progress, Works For Me™ pattern engine over real logs, Weekly Body Meeting.

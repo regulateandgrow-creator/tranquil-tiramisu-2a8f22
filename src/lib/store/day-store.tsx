@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { BodySignalKey, DayCheckIn, DayNourish, LifeMode, MealSlot, MealTag, SignalLevel } from "@/lib/demo/types";
+import type { BodySignalKey, DayCheckIn, DayMove, DayNourish, LifeMode, MealSlot, MealTag, MoveDuration, MoveKind, SignalLevel, StrengthArea } from "@/lib/demo/types";
 import { dayKey } from "@/lib/utils/date";
 import { saveCheckInAction, saveLifeModeAction, saveProfileAction, type SaveResult } from "./actions";
 
@@ -169,7 +169,7 @@ function createStore(mode: StoreMode, initial: DayStoreInitial): Store {
       const day = touched.checkInDay;
       schedule(`check-in:${day}`, () => {
         const checkIn = state.checkIns[day] ?? { day, signals: {} };
-        return saveCheckInAction({ day, feeling: checkIn.feeling ?? null, signals: checkIn.signals, nourish: checkIn.nourish ?? {} });
+        return saveCheckInAction({ day, feeling: checkIn.feeling ?? null, signals: checkIn.signals, nourish: checkIn.nourish ?? {}, move: checkIn.move ?? {} });
       });
     }
   };
@@ -227,6 +227,12 @@ export interface DayStoreValue {
   toggleMealTag: (slot: MealSlot, tag: MealTag) => void;
   setPlants: (count: number) => void;
   setWater: (count: number) => void;
+  move: DayMove;
+  toggleMoveKind: (kind: MoveKind) => void;
+  setMoveDuration: (duration: MoveDuration | undefined) => void;
+  toggleStrengthArea: (area: StrengthArea) => void;
+  /** Every check-in the store knows about, keyed by day. */
+  checkIns: Record<string, DayCheckIn>;
   loggedCount: number;
   sync: SyncStatus;
 }
@@ -299,6 +305,53 @@ export function useDayStore(): DayStoreValue {
   const setPlants = useCallback((count: number) => updateNourish((n) => ({ ...n, plants: count })), [updateNourish]);
   const setWater = useCallback((count: number) => updateNourish((n) => ({ ...n, water: count })), [updateNourish]);
 
+  const updateMove = useCallback(
+    (fn: (m: DayMove) => DayMove) => updateCheckIn((c) => ({ ...c, move: fn(c.move ?? {}) })),
+    [updateCheckIn],
+  );
+
+  const toggleMoveKind = useCallback(
+    (kind: MoveKind) =>
+      updateMove((m) => {
+        const current = m.kinds ?? [];
+        let next = current.includes(kind) ? current.filter((k) => k !== kind) : [...current, kind];
+        // A rest day stands alone; any movement clears it and vice versa.
+        if (kind === "rest" && next.includes("rest")) next = ["rest"];
+        else if (kind !== "rest") next = next.filter((k) => k !== "rest");
+        const out: DayMove = { ...m };
+        if (next.length === 0) delete out.kinds;
+        else out.kinds = next;
+        if (!next.includes("strength")) delete out.strength;
+        if (next.length === 0 || next.includes("rest")) delete out.duration;
+        return out;
+      }),
+    [updateMove],
+  );
+
+  const setMoveDuration = useCallback(
+    (duration: MoveDuration | undefined) =>
+      updateMove((m) => {
+        const out: DayMove = { ...m };
+        if (duration === undefined) delete out.duration;
+        else out.duration = duration;
+        return out;
+      }),
+    [updateMove],
+  );
+
+  const toggleStrengthArea = useCallback(
+    (area: StrengthArea) =>
+      updateMove((m) => {
+        const current = m.strength ?? [];
+        const next = current.includes(area) ? current.filter((a) => a !== area) : [...current, area];
+        const out: DayMove = { ...m };
+        if (next.length === 0) delete out.strength;
+        else out.strength = next;
+        return out;
+      }),
+    [updateMove],
+  );
+
   return {
     today,
     profile: snapshot.profile,
@@ -312,6 +365,11 @@ export function useDayStore(): DayStoreValue {
     toggleMealTag,
     setPlants,
     setWater,
+    move: checkIn.move ?? {},
+    toggleMoveKind,
+    setMoveDuration,
+    toggleStrengthArea,
+    checkIns: snapshot.checkIns,
     loggedCount: Object.keys(checkIn.signals).length,
     sync: snapshot.sync,
   };

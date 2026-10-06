@@ -149,6 +149,39 @@ begin
   end;
 end $$;
 
+-- ---- Move (Stage 6): fixed vocabulary, validated at the database -------------
+update public.day_check_ins
+   set move = '{"kinds":["walk","strength"],"duration":"short","strength":["legs","core"]}'
+ where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+do $$
+begin
+  if (select move->>'duration' from public.day_check_ins where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') <> 'short' then
+    raise exception 'FAIL: valid move was not stored';
+  end if;
+  raise notice 'PASS: Ana can log movement and strength';
+end $$;
+do $$
+begin
+  begin
+    update public.day_check_ins set move = '{"kinds":["marathon"]}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: unknown movement kind accepted';
+  exception when check_violation then
+    raise notice 'PASS: unknown movement kind rejected';
+  end;
+  begin
+    update public.day_check_ins set move = '{"duration":"90"}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: unknown duration accepted';
+  exception when check_violation then
+    raise notice 'PASS: duration outside the four bands rejected';
+  end;
+  begin
+    update public.day_check_ins set move = '{"calories":300}' where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    raise exception 'FAIL: a calories key was accepted in move';
+  exception when check_violation then
+    raise notice 'PASS: no calorie or weight key can be stored in move';
+  end;
+end $$;
+
 -- ---- Act as Bea -----------------------------------------------------------
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', false);
 

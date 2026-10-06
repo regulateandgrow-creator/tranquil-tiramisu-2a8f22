@@ -81,9 +81,14 @@ export function MyFoundation({
           ))}
         </ul>
         {showLink && (
-          <Link href="/nourish" className="mt-5 inline-flex items-center gap-1.5 text-[15px] font-semibold text-espresso transition-colors hover:text-charcoal">
-            Tap today&apos;s plate in Nourish <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
+            <Link href="/nourish" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-espresso transition-colors hover:text-charcoal">
+              Tap today&apos;s plate in Nourish <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/move" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-espresso transition-colors hover:text-charcoal">
+              Note today&apos;s movement in Move <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         )}
       </Card>
     </section>
