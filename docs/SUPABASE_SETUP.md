@@ -24,11 +24,14 @@ Both are safe to expose to the browser. Do **not** copy the `service_role` / sec
 - **Site URL:** `http://localhost:3000` while developing. Change to your real domain when deployed.
 - **Redirect URLs:** add `http://localhost:3000/auth/confirm` (and later `https://your-domain.com/auth/confirm`).
 
-## 4. Point the magic-link email at the app
+## 4. The magic-link email (optional)
 
-**Authentication → Email Templates → Magic Link**
+**Nothing to do here for private beta.** Supabase's default Magic Link email works as is: Supabase
+verifies the link and sends the browser to `/auth/confirm`, which signs you in.
 
-Replace the link in the template body with:
+Supabase only lets you edit email templates once a custom email sender (SMTP) is configured. When you
+set that up later (for your own sender address and higher sending limits), you can replace the
+**Authentication → Email Templates → Magic Link** body with:
 
 ```html
 <h2>Your GROWN. sign-in link</h2>
@@ -37,8 +40,8 @@ Replace the link in the template body with:
 ```
 
 Keep the subject plain, for example `Your GROWN. sign-in link`. No marketing copy in this milestone.
-
-Do the same for the **Confirm signup** template if it is enabled, using `type=email` as well. (Magic link signs up new users automatically, so most projects only need the Magic Link template.)
+The custom link has one advantage: it also works when opened in a different browser than the one that
+requested it. The default link must be opened in the same browser.
 
 ## 5. Paste the values into the app
 
