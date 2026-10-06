@@ -283,12 +283,22 @@ routes under `src/app/api/intelligence/`, UI in `src/components/intelligence/`. 
 placeholders. Analyses produced by the fixture provider carry `model = "fixture"` and show a
 "Scripted test data" badge.
 
+### My Products (`/my-products`) — Stage 4
+A view over her completed analyses; nothing new is stored. One entry per product (repeat analyses fold
+together, newest Breakdown linked, newest decision wins), on four shelves: **Still deciding**,
+**Trying & tracking**, **Saved for later**, **Not for me**. Each entry shows category, headline,
+Evidence-fit and Value verdicts from the GROWN. TAKE, monthly cost only when pricing was confirmed, and a
+three-way decision toggle that writes through the existing decision route. Demo mode shows a fictional
+read-only shelf. On phones, Settings carries the secondary destinations (`MoreLinks`).
+Code: `src/lib/products/my-products.ts` (pure builder, unit-tested), `src/components/products/*`.
+
 ### Settings (`/settings`)
-First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), account
-card with email and sign-out (live mode), and a plain "What we keep" list. Demo mode saves on-device.
+First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
+"More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
+"What we keep" list. Demo mode saves on-device.
 
 ### Placeholder routes
-My Body, Nourish, Move, Progress, My Products, Works For Me, Weekly Body Meeting render
+My Body, Nourish, Move, Progress, Works For Me, Weekly Body Meeting render
 `<PagePlaceholder>` with their positioning copy and target milestone.
 
 ---
@@ -384,8 +394,9 @@ Follow-ups applied after founder approval (2026-10-05):
 
 - **Milestone 1 (done):** shell, design system, navigation, Home dashboard, check-in, foundation,
   Works For Me preview, Life Is Lifing, Thought, Intelligence placeholder.
-- **Milestone 2:** Supabase auth + persistence (check-ins, life mode, profile incl. hide-weight), Settings,
-  GROWN. Intelligence v1 (type + link analysis via server route with citations), My Products list.
+- **Milestone 2 (done):** Supabase auth + persistence (check-ins, life mode, profile incl. hide-weight),
+  Settings, GROWN. Intelligence v1 (Type a Product via server route with citations), My Products shelf.
+  Paste a Link and camera scanning move to Milestone 3.
 - **Milestone 3:** Nourish (meals, protein/fiber/hydration logging), Move (everyday movement + strength),
   image scanning via Claude vision.
 - **Milestone 4:** Progress, Works For Me™ pattern engine over real logs, Weekly Body Meeting.

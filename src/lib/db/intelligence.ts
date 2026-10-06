@@ -87,6 +87,19 @@ export async function listAnalyses(supabase: SupabaseClient, userId: string, lim
   return (data ?? []) as AnalysisRow[];
 }
 
+/** Completed analyses for My Products: light columns only, newest first. */
+export async function listCompleteAnalyses(supabase: SupabaseClient, userId: string, limit = 200): Promise<AnalysisRow[]> {
+  const { data, error } = await supabase
+    .from("analyses")
+    .select("id,user_id,product_id,candidates,decision,decided_at,created_at,model,result")
+    .eq("user_id", userId)
+    .eq("status", "complete")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`list complete analyses failed: ${error.message}`);
+  return (data ?? []) as AnalysisRow[];
+}
+
 export async function updateAnalysis(
   supabase: SupabaseClient,
   id: string,

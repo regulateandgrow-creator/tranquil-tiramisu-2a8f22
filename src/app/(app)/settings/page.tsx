@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SignOutButton } from "@/components/navigation/SignOutButton";
+import { MoreLinks } from "@/components/navigation/MoreLinks";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getStoreBootstrap } from "@/lib/store/bootstrap";
 import { SettingsForm } from "./SettingsForm";
@@ -21,6 +22,8 @@ export default async function SettingsPage() {
       />
 
       <SettingsForm mode={mode} />
+
+      <MoreLinks />
 
       <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

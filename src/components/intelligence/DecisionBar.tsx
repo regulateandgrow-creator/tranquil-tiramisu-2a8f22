@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bookmark, FlaskConical, XCircle, Check } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import type { Decision } from "@/lib/db/intelligence";
 
@@ -44,8 +45,8 @@ export function DecisionBar({ id, initial }: { id: string; initial: Decision | n
           error
         ) : decision ? (
           <span className="inline-flex items-center gap-1.5 text-espresso">
-            <Check className="h-4 w-4 text-sage" strokeWidth={2.5} /> Saved: {LABELS[decision]}.
-            {decision === "try_track" && " My Body Responds will connect to this in a later stage."}
+            <Check className="h-4 w-4 text-sage" strokeWidth={2.5} /> Saved: {LABELS[decision]}.{" "}
+            <Link href="/my-products" className="font-semibold underline-offset-2 hover:underline">See it in My Products</Link>
           </span>
         ) : null}
       </p>
