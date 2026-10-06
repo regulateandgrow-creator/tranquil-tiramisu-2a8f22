@@ -66,3 +66,38 @@ Restart `npm run dev`. The app now requires sign-in and the demo account disappe
 - Supabase's built-in email service is limited to a small number of emails per hour on free projects, and one link per minute per address. That is enough for a handful of testers. Before inviting more people, connect a real email provider under **Authentication → SMTP Settings** (Resend, Postmark, and others have free tiers).
 - The first name shown after sign-in comes from the email address until Stage 2 adds a profile where she can set it.
 - Nothing is stored in the database yet. Stage 2 adds the tables and the per-row security rules.
+
+## 7. Applying and verifying the schema on the real project
+
+Two routes. Both apply `supabase/migrations/*.sql` in order, each file in one transaction.
+
+**From a machine that can open a database connection** (your laptop):
+
+```bash
+SUPABASE_DB_URL='postgresql://…'  scripts/apply-production-migrations.sh
+SUPABASE_DB_URL='postgresql://…'  scripts/verify-production-db.sh
+```
+
+**From a cloud session that only allows HTTPS** (Claude Code cloud sessions: raw database
+connections cannot leave the container, so the connection string is useless there and should not be
+stored in its environment). Use a **scoped personal access token** instead:
+
+1. https://supabase.com/dashboard/account/tokens → Generate new token → leave the preset on
+   *No access*, expand **Database**, set **Database** and **Migrations** to *Read-write*, everything
+   else *None*, 7-day expiry. Delete it when the work is done.
+2. Add `SUPABASE_ACCESS_TOKEN=…` to the environment's variables (never to the repo).
+3. Allow `*.supabase.co` and `api.supabase.com` in the environment's network policy.
+
+```bash
+node scripts/apply-production-migrations.mjs    # refuses if public.profiles already exists
+node scripts/verify-production-db.mjs           # schema, RLS, grants, cron, RLS suite (rolled back)
+node scripts/supabase-sql.mjs "select now()"    # ad-hoc SQL (SQL_READ_ONLY=1 for the read-only role)
+```
+
+`tests/production/smoke.mjs` drives the running app (fixture AI provider, no Anthropic spend) through
+sign-in, check-ins, Settings, Hide Weight, five analyses, the daily limit, isolation between two users,
+and sign-out, then deletes everything it created. Run it against `next dev -p 3001` started with the
+project's public URL and keys and `GROWN_AI_PROVIDER=fixture`.
+
+The project URL may be pasted with or without a `/rest/v1/` suffix; the app normalizes it.
+

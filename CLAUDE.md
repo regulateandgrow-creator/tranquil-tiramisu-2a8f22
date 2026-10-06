@@ -214,6 +214,11 @@ npx vitest run --config vitest.live.config.mts   # narrow live checks (cents), e
 
 # Row-level security tests (needs a local PostgreSQL superuser; never a real Supabase project)
 PGHOST=localhost PGPORT=5432 PGUSER=postgres scripts/test-rls.sh
+
+# Real project, via the Management API (scoped SUPABASE_ACCESS_TOKEN; see docs/SUPABASE_SETUP.md §7)
+node scripts/apply-production-migrations.mjs   # first-time only; refuses if tables exist
+node scripts/verify-production-db.mjs          # schema, RLS, grants, cron + RLS suite rolled back
+node tests/production/smoke.mjs                # end-to-end against the real project, fixture AI, self-cleaning
 ```
 
 Applying the schema to a real project: paste each file in `supabase/migrations/` into the Supabase SQL
@@ -360,6 +365,20 @@ Follow-ups applied after founder approval (2026-10-05):
 - **Rubric taxonomy:** an unambiguous reference to the canonical product identity (e.g. "E27", the product
   name, "this bottle") counts as "this product" in the product-vs-ingredient check; an ingredient-side
   reference is still required, so generic ingredient prose cannot pass it.
+
+### Stage 3.5 — production Supabase readiness (2026-10-06, applied with founder approval)
+
+- Both migrations applied to the real project (PostgreSQL 17) through the Management API, each in one
+  transaction; verified: 9 tables with RLS, 14 policies, 4 triggers, 4 functions, 6 `app_config` rows,
+  hourly `purge-ai-raw-logs` cron job, anon has no table privileges, `app_config`/`ai_raw_logs` are
+  server-only. The 26-assertion RLS suite ran against production inside a rolled-back transaction.
+- Production smoke test (`tests/production/smoke.mjs`): 52 checks, fixture provider, two throwaway users
+  at desktop and mobile widths, all rows verified in the database, everything deleted afterwards.
+- Magic link: Supabase now requires custom SMTP before email templates can be edited, so the private beta
+  uses the default template. `/auth/confirm` accepts both the default `?code=` link (same-browser only)
+  and the custom `?token_hash=` link. Editing the template is an optional later step.
+- Cloud sessions cannot open raw database connections; use the Management API scripts and a scoped token.
+  `SUPABASE_DB_URL` belongs on a laptop only.
 
 ## 9. Roadmap
 
