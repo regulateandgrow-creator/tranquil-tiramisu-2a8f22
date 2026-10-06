@@ -10,11 +10,11 @@ import { SignInForm } from "./SignInForm";
 export const metadata = { title: "Sign in" };
 
 interface SignInPageProps {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string }>;
 }
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
   const live = isSupabaseConfigured();
 
   return (
@@ -33,6 +33,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         </div>
 
         <Card className="p-6 sm:p-8">
+          {deleted === "1" && (
+            <p role="status" className="mb-5 rounded-2xl bg-sage-soft px-4 py-3 text-sm text-espresso">
+              Your account and everything in it are gone. Thank you for the time you spent here.
+            </p>
+          )}
           {error === "link" && (
             <p role="alert" className="mb-5 rounded-2xl bg-rose-soft px-4 py-3 text-sm text-espresso">
               That sign-in link has expired or was already used. Request a fresh one below.
@@ -69,6 +74,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-espresso-soft">
           <Sparkles className="h-3.5 w-3.5 text-gold" strokeWidth={1.75} />
           Your body is the data. Not TikTok.™
+        </p>
+        <p className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-espresso-soft">
+          <span>A literacy tool, not medical advice.</span>
+          <Link href="/privacy" className="font-semibold hover:text-espresso">Privacy</Link>
+          <Link href="/terms" className="font-semibold hover:text-espresso">Terms</Link>
         </p>
       </div>
     </div>

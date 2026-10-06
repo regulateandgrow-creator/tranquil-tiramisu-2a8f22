@@ -43,7 +43,7 @@ export default async function IntelligencePage({ searchParams }: { searchParams:
         as="h1"
         eyebrow="Consumer wellness literacy"
         title={<span className="inline-flex items-center gap-2">GROWN. Intelligence <Sparkles className="h-6 w-6 text-gold" strokeWidth={1.75} /></span>}
-        description="Thinking about buying something? Let's look at it first."
+        description="Thinking about buying something? Let's look at it first. Literacy with sources, not medical advice."
       />
 
       {ready ? (

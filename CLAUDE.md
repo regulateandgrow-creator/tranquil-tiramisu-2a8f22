@@ -386,8 +386,18 @@ keeps them on-device. No AI call; no free text.
 
 ### Settings (`/settings`)
 First name (saved on submit), **Hide weight entirely** switch (saved immediately, default on), a
-"More of GROWN." link list on phones, account card with email and sign-out (live mode), and a plain
-"What we keep" list. Demo mode saves on-device.
+"More of GROWN." link list on phones, account card with email and sign-out (live mode), a "What we keep"
+list linking to `/privacy`, and **Delete my account** (Stage 11): a two-step confirm, then
+`POST /auth/delete` removes the auth user through the service-role client and the database cascades
+everything hers; demo mode clears this device. Lands on `/sign-in?deleted=1` with a kind line.
+
+### Privacy and Terms (`/privacy`, `/terms`) — Stage 11
+Public pages (listed in the proxy's public prefixes) under `src/app/(legal)/`, written from what the app
+actually stores (see `docs/DATA_RETENTION.md`): what we keep, what we never collect (weight, photos,
+pages), how Intelligence uses AI, who else touches data (Supabase, Anthropic, hosting), cookies, her
+rights, and plain terms (literacy not medical advice, associations not causes, Intelligence can be wrong,
+adults, fair use, liability). `NEXT_PUBLIC_SUPPORT_EMAIL` fills the contact line when set. Keep these
+pages in step with every new field.
 
 ### Placeholder routes
 None remain. `<PagePlaceholder>` stays available for future routes.

@@ -13,6 +13,9 @@ Revisit before public launch. Current behaviour, as implemented in Stage 3.
 | Usage events | `usage_events` | Kept while her account exists (counts the rolling 24h limit) | No |
 | Raw AI prompts and outputs | `ai_raw_logs` | **Short, configurable**: `ai_raw_log_retention_days` (beta default 14), then purged | Yes, by nature (prompts include goals and the dossier). Hence the short window. |
 | Server console lines | hosting logs | Hosting provider's default | No: `opsLine()` emits only ids, codes, counts and timings |
+| Daily taps (signals, Nourish, Move) and weekly meeting chips | `day_check_ins`, `weekly_meetings` | Kept while her account exists; deleted with the account | Yes, by design: this is her own log, chip values only |
+| Label photos (Scan a label) | nowhere | Read once in memory, never written | n/a |
+| Linked pages (Paste a link) | nowhere | Read once, product name taken, never written | n/a |
 
 ## How purging works
 
@@ -30,4 +33,6 @@ Revisit before public launch. Current behaviour, as implemented in Stage 3.
 
 - Decide whether completed analyses should expire after N months of inactivity.
 - Decide whether raw logs should be disabled entirely outside of active debugging.
-- Add an account-deletion flow in Settings (today deletion is done by an operator; cascades are tested).
+- ~~Add an account-deletion flow in Settings~~ Done (Stage 11): Settings → Delete my account → `POST /auth/delete`
+  removes the auth user through the service-role client; the database cascades profile, check-ins, weekly
+  meetings, analyses, usage events and raw logs. Shared product facts stay.

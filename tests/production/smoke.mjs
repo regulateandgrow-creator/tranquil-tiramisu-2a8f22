@@ -213,6 +213,24 @@ const { error: anIns } = await anonClient.from("day_check_ins").insert({ user_id
 ok("anonymous: cannot insert a check-in", !!anIns);
 await userClient.auth.signOut();
 
+// ---------- Public pages while signed out, and self-service deletion (Stage 11) ----------
+const pub = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const P = await pub.newPage();
+for (const path of ["/privacy", "/terms"]) {
+  const r = await P.goto(base + path, { waitUntil: "networkidle" });
+  ok(`public ${path} readable signed out`, r.status() === 200 && new URL(P.url()).pathname === path);
+}
+ok("privacy page says weight is never collected", (await P.evaluate(() => document.body.innerText)).includes("Your weight.") === false ? (await P.goto(base + "/privacy"), (await P.evaluate(() => document.body.innerText)).includes("never collect")) : true);
+await pub.close();
+// B deletes her own account through the UI; the database must cascade.
+await B.goto(base + "/settings", { waitUntil: "networkidle" });
+await B.getByRole("button", { name: "Delete my account" }).click();
+await B.getByRole("button", { name: "Yes, delete everything" }).click();
+await B.waitForURL("**/sign-in?deleted=1");
+ok("B: self-service deletion lands on the kind sign-in notice", (await B.evaluate(() => document.body.innerText)).includes("Your account and everything in it are gone"));
+const gone = q(`select (select count(*)::int from auth.users where id='${idB}') as users, (select count(*)::int from public.profiles where id='${idB}') as profiles`)[0];
+ok("B: account and profile removed by the cascade", gone.users === 0 && gone.profiles === 0, JSON.stringify(gone));
+
 // ---------- Sign out ----------
 await A.goto(base + "/", { waitUntil: "networkidle" });
 await A.getByRole("button", { name: "Sign out" }).click();
@@ -233,7 +251,7 @@ ok("usage_events hold no free text", cols.find((c) => c.table_name === "usage_ev
 
 // ---------- Cleanup ----------
 const productsNew = q("select id from public.products").map((r) => r.id).filter((id) => !productsBefore.has(id));
-for (const id of [idA, idB]) { const { error } = await admin.auth.admin.deleteUser(id); ok(`cleanup: deleted test user ${id === idA ? "A" : "B"}`, !error, error?.message); }
+{ const { error } = await admin.auth.admin.deleteUser(idA); ok("cleanup: deleted test user A", !error, error?.message); }
 for (const pid of productsNew) { const { error } = await admin.from("products").delete().eq("id", pid); ok("cleanup: deleted test product (cascades dossier)", !error, error?.message); }
 const left = q(`select (select count(*)::int from public.weekly_meetings where user_id in ('${idA}','${idB}')) as meetings, (select count(*)::int from public.profiles where id in ('${idA}','${idB}')) as profiles, (select count(*)::int from public.day_check_ins where user_id in ('${idA}','${idB}')) as check_ins, (select count(*)::int from public.analyses where user_id in ('${idA}','${idB}')) as analyses, (select count(*)::int from public.usage_events where user_id in ('${idA}','${idB}')) as events, (select count(*)::int from public.ai_raw_logs) as raw_logs, (select count(*)::int from public.products) as products, (select count(*)::int from public.product_research where model='fixture') as fixture_dossiers, (select count(*)::int from auth.users) as users`)[0];
 console.log("after cleanup:", JSON.stringify(left));

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./config";
 
 /** Paths that never require a session. */
-const PUBLIC_PREFIXES = ["/sign-in", "/auth/"];
+const PUBLIC_PREFIXES = ["/sign-in", "/auth/", "/privacy", "/terms"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
